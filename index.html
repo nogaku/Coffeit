@@ -100,6 +100,19 @@
     .valor .nombre { color: var(--secundario); font-size: 13px; }
     .valor strong { display: block; font-size: clamp(22px, 3vw, 31px); font-variant-numeric: tabular-nums; color: var(--cafe); margin: 7px 0; }
     .valor .explicacion { color: var(--secundario); font-size: 12px; }
+    .fase-cabecera { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+    .fase-cabecera h2 { margin-bottom: 4px; }
+    .fase-chip { display: inline-flex; align-items: center; gap: 9px; border: 1px solid var(--borde); border-radius: 999px; padding: 9px 14px; font-size: 16px; font-weight: 800; color: var(--texto); background: var(--campo); }
+    .fase-chip::before { content: ''; width: 10px; height: 10px; border-radius: 50%; background: var(--secundario); }
+    .fase-chip.subida::before { background: #a8d5a8; }
+    .fase-chip.pico::before { background: var(--cafe); }
+    .fase-chip.meseta::before { background: #c5b9fd; }
+    .fase-chip.bajada::before { background: #a5c9ed; }
+    .fases { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 17px; }
+    .fase-paso { text-align: center; padding: 11px 5px; border: 1px solid var(--borde); border-radius: 10px; background: #302720; font-size: 13px; color: var(--secundario); }
+    .fase-paso.activa { border-color: var(--cafe); color: var(--texto); background: #513825; font-weight: 800; }
+    .fase-mensaje { margin-top: 13px; font-size: 15px; }
+    .fase-nota { font-size: 12px; color: var(--secundario); margin-top: 8px; }
     .separador { border-top: 1px solid var(--borde); padding-top: 13px; margin-top: 14px; }
     .registros { display: grid; gap: 9px; margin: 12px 0; }
     .registro { display: flex; align-items: center; justify-content: space-between; gap: 12px; background: var(--campo); padding: 11px 13px; border-radius: 10px; }
@@ -118,6 +131,7 @@
       .valores { grid-template-columns: 1fr; }
       .valor { padding: 12px 14px; }
       .valor strong { font-size: 25px; }
+      .fases { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
     @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
   </style>
@@ -199,7 +213,26 @@
           <div class="explicacion" id="numeroCafes">0 cafés registrados.</div>
         </div>
       </div>
-      <p class="ayuda" style="margin-top:15px">Son cantidades aproximadas de cafeína restante, no una medición en sangre ni una predicción del sueño.</p>
+      <p class="ayuda" style="margin-top:15px">La cantidad «ahora» se incrementa progresivamente durante la absorción (no toda de golpe). Son estimaciones, no mediciones en sangre ni predicciones del sueño.</p>
+    </section>
+
+
+    <section class="tarjeta ancha" aria-labelledby="titulo-fase">
+      <div class="fase-cabecera">
+        <div>
+          <h2 id="titulo-fase">¿En qué fase está tu cafeína?</h2>
+          <p class="ayuda">Evolución estimada a partir de todos los cafés registrados.</p>
+        </div>
+        <div id="faseChip" class="fase-chip" role="status" aria-live="polite">Calculando…</div>
+      </div>
+      <div class="fases" aria-label="Fases de la cafeína">
+        <div id="fase-subida" class="fase-paso">↗ Subiendo</div>
+        <div id="fase-pico" class="fase-paso">▲ Pico</div>
+        <div id="fase-meseta" class="fase-paso">→ Meseta</div>
+        <div id="fase-bajada" class="fase-paso">↘ Bajando</div>
+      </div>
+      <p id="faseExplicacion" class="fase-mensaje">Calculando fase estimada…</p>
+      <p class="fase-nota">La fase describe cómo cambia la cantidad de cafeína absorbida y todavía presente en el organismo. No mide la energía, el nerviosismo ni el efecto real en ti.</p>
     </section>
 
     <section class="tarjeta ancha" aria-labelledby="titulo-historial">
@@ -215,8 +248,9 @@
   <footer>
     Cálculos automáticos con supuestos generales: semivida de cafeína de 5 horas,
     recomendación orientativa de evitar cafeína 8 horas antes de dormir y estimación inicial de 7 mg de cafeína
-    por gramo de café molido. Para simplificar, el modelo considera la dosis disponible desde el momento de la toma.
-    La extracción real, el metabolismo y los efectos sobre el sueño varían entre personas.
+    por gramo de café molido. La absorción se modela gradualmente, con un pico aproximado a los 45–50 minutos
+    para una toma aislada (puede variar mucho entre personas). «Subida», «pico», «meseta» y «bajada» indican
+    tendencias de una estimación, no efectos físicos comprobados. La extracción real, el metabolismo y el sueño varían.
     Los registros permanecen en este navegador.
   </footer>
 </main>
@@ -225,6 +259,9 @@
 
   // Valores generales internos: el usuario solo necesita elegir la hora de acostarse.
   const SEMIVIDA_HORAS = 5;
+  // Absorción de primer orden: para una sola toma, pico teórico a ~48 min.
+  // No es una prueba ni una medición de cafeína real.
+  const ABSORCION_POR_HORA = 4.5;
   const MARGEN_SUENO_HORAS = 8;
   const CAFEINA_POR_GRAMO_INICIAL = 7;
   const ALMACENAMIENTO = 'dedica_monitor_v2'; // Mantiene registros del HTML anterior.
@@ -284,16 +321,91 @@
     }
   }
 
-  // Aproximación sencilla: se aplica eliminación exponencial desde la toma.
-  // Se suman todas las tomas registradas, también las de días anteriores.
-  function cafeinaRestante(instante) {
+  // Modelo orientativo de absorción y eliminación en un compartimento.
+  // Al registrar una toma reciente, NO se añade instantáneamente toda su dosis
+  // a "cafeína estimada ahora". El total "Café de hoy" sí suma las dosis.
+  // Puede recibir un conjunto fijo de tomas para evaluar la tendencia actual
+  // sin incluir futuras tomas previstas en su proyección.
+  function cafeinaRestante(instante, registros = datos.records) {
+    const eliminacion = Math.log(2) / SEMIVIDA_HORAS;
     let suma = 0;
-    for (const cafe of datos.records) {
+    for (const cafe of registros) {
       const horasTranscurridas = (instante - cafe.at) / 3600000;
-      if (horasTranscurridas < 0) continue;
-      suma += cafe.mg * Math.pow(0.5, horasTranscurridas / SEMIVIDA_HORAS);
+      if (horasTranscurridas <= 0) continue;
+      const absorbidaYRestante = cafe.mg * (ABSORCION_POR_HORA / (ABSORCION_POR_HORA - eliminacion)) *
+        (Math.exp(-eliminacion * horasTranscurridas) - Math.exp(-ABSORCION_POR_HORA * horasTranscurridas));
+      suma += Math.max(0, absorbidaYRestante);
     }
     return suma;
+  }
+
+  // Se evalúa la curva completa, no solo el último café. Varios cafés pueden
+  // solaparse y producir una subida, un nuevo pico o una bajada combinada.
+  function faseCafeina(ahora) {
+    const t = ahora.getTime();
+    const tomados = datos.records.filter((c) => c.at <= t);
+    const actual = cafeinaRestante(t, tomados);
+    if (tomados.length === 0 || actual < 1) {
+      // Recién registrado: aunque aún se estimen menos de 1 mg absorbidos,
+      // mostrar subida si durante los próximos minutos comienza la absorción.
+      const despues = cafeinaRestante(t + 10 * 60000, tomados);
+      if (despues <= 1) {
+        return { etapa: '', nombre: 'Sin apenas cafeína', detalle: 'No hay una cantidad apreciable de cafeína estimada ahora.' };
+      }
+    }
+
+    const antes = cafeinaRestante(t - 10 * 60000, tomados);
+    const despues = cafeinaRestante(t + 10 * 60000, tomados);
+    const margenPico = Math.max(0.25, actual * 0.006);
+    const subia = actual > antes + margenPico;
+    const bajara = despues < actual - margenPico;
+    const cercaDelPico = actual >= 1 &&
+      actual >= antes - margenPico && actual >= despues - margenPico &&
+      Math.abs(actual - antes) <= Math.max(1.3, actual * 0.025) &&
+      Math.abs(actual - despues) <= Math.max(1.3, actual * 0.025) &&
+      tomados.some((c) => (t - c.at) <= 2 * 3600000) &&
+      (subia || bajara);
+
+    if (cercaDelPico) {
+      return { etapa: 'pico', nombre: 'Cerca del pico',
+        detalle: 'La cantidad calculada está cerca de un máximo local. No significa necesariamente el momento de mayor efecto subjetivo.' };
+    }
+
+    const variacion = despues - actual;
+    if (variacion > actual * 0.008) {
+      let mejorValor = actual;
+      let enMinutos = 0;
+      for (let minutos = 1; minutos <= 180; minutos++) {
+        const valor = cafeinaRestante(t + minutos * 60000, tomados);
+        if (valor > mejorValor) {
+          mejorValor = valor;
+          enMinutos = minutos;
+        }
+      }
+      const referencia = enMinutos > 0 ? `Si no tomas más café, el próximo máximo estimado llegaría en unos ${enMinutos} min.` : '';
+      return { etapa: 'subida', nombre: 'En subida',
+        detalle: `Todavía se está absorbiendo cafeína y el total estimado aumenta. ${referencia}`.trim() };
+    }
+    if (Math.abs(variacion) <= actual * 0.008) {
+      return { etapa: 'meseta', nombre: 'Prácticamente estable',
+        detalle: 'Durante los próximos minutos la cantidad estimada varía muy poco. Es una meseta aproximada, no un estado constante.' };
+    }
+    return { etapa: 'bajada', nombre: 'En bajada',
+      detalle: 'La eliminación supera la absorción: la cafeína estimada está disminuyendo, aunque todavía puede quedarte una cantidad importante.' };
+  }
+
+  function actualizarFase(ahora) {
+    const fase = faseCafeina(ahora);
+    const chip = $('faseChip');
+    chip.className = `fase-chip ${fase.etapa}`;
+    chip.textContent = fase.nombre;
+    $('faseExplicacion').textContent = fase.detalle;
+    for (const etapa of ['subida', 'pico', 'meseta', 'bajada']) {
+      const celda = $(`fase-${etapa}`);
+      celda.classList.toggle('activa', etapa === fase.etapa);
+      if (etapa === fase.etapa) celda.setAttribute('aria-current', 'step');
+      else celda.removeAttribute('aria-current');
+    }
   }
 
   function proximaHoraDormir(ahora) {
@@ -343,6 +455,7 @@
     $('horaDormirTexto').textContent = `A las ${formatoHora.format(dormir)}, con los cafés ya registrados.`;
     $('totalCafeinaHoy').textContent = `${formatoNumero(totalHoy)} mg`;
     $('numeroCafes').textContent = `${hoy.length} ${hoy.length === 1 ? 'café registrado' : 'cafés registrados'}.`;
+    actualizarFase(ahora);
 
     const fueraDeHora = hoy.filter((c) => c.at > horaTope.getTime() && c.at <= dormir.getTime());
     const aviso = $('avisoSueno');
@@ -456,3 +569,4 @@
 </script>
 </body>
 </html>
+
