@@ -1,66 +1,458 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#251b17">
-<title>Monitor de cafeína · Dedica</title>
-<style>
-:root{color-scheme:dark;--bg:#151311;--surface:#241e1a;--surface2:#312720;--border:#4b3c31;--text:#f8f0e7;--muted:#c7b9a9;--gold:#efbb7b;--ok:#9bd1a1;--warn:#ffd085;--bad:#ff9e9e}
-*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top,#39261c 0%,var(--bg) 58%);color:var(--text);font:15px/1.55 system-ui,-apple-system,Segoe UI,sans-serif}
-main{max-width:920px;margin:auto;padding:28px 16px 60px}header{text-align:center;margin-bottom:26px}h1{font-size:clamp(26px,5vw,38px);margin:0}h2{font-size:18px;margin:0 0 14px}p{margin:8px 0;color:var(--muted)}.eyebrow{letter-spacing:.2em;text-transform:uppercase;font-size:11px;color:var(--gold)}.layout{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.card{background:var(--surface);border:1px solid var(--border);border-radius:17px;padding:20px;box-shadow:0 10px 28px #0002}.wide{grid-column:1/-1}.fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:12px 0}.field{display:flex;flex-direction:column;gap:5px}label{font-size:13px;color:var(--muted)}input,select,button{font:inherit}input,select{width:100%;min-width:0;background:var(--surface2);color:var(--text);border:1px solid #655143;border-radius:10px;padding:10px}input:focus-visible,select:focus-visible,button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}button{border:0;border-radius:10px;background:var(--gold);color:#28180e;padding:11px 16px;cursor:pointer;font-weight:750}button:hover{filter:brightness(1.06)}button.secondary{background:#48382d;color:var(--text)}button.danger{background:#613032;color:#fff}button.small{padding:6px 10px;font-size:13px}button:disabled{opacity:.5;cursor:not-allowed}.actions{display:flex;flex-wrap:wrap;gap:10px}.metric{font-weight:800;font-size:clamp(28px,4vw,38px);line-height:1.2;color:var(--gold)}.sub{font-size:13px;color:var(--muted)}.meter{height:12px;background:#4a382e;border-radius:99px;overflow:hidden;margin:13px 0}.meter>div{height:100%;width:0;background:linear-gradient(90deg,#b2cfa2,#efbb7b,#ee9792);transition:width .2s}.notice{border-left:4px solid var(--warn);background:#3c3025;padding:12px 14px;border-radius:9px;color:var(--text);margin-top:12px}.notice.ok{border-left-color:var(--ok)}.notice.bad{border-left-color:var(--bad)}.records{display:grid;gap:8px;margin:12px 0}.record{display:flex;align-items:center;justify-content:space-between;gap:14px;background:var(--surface2);border-radius:11px;padding:10px 12px}.record small{display:block;color:var(--muted)}.table-wrap{overflow-x:auto}table{border-collapse:collapse;width:100%;min-width:460px}th,td{text-align:left;border-bottom:1px solid var(--border);padding:11px 9px;font-variant-numeric:tabular-nums}th{color:var(--gold);font-size:12px}tr.highlight{background:#473222}svg{display:block;width:100%;height:auto}.chartbox{background:var(--surface2);border-radius:12px;padding:10px}.chart-label{fill:var(--muted);font-size:12px}.chart-grid{stroke:#6b5345;stroke-dasharray:3 5}footer{font-size:12px;color:var(--muted);margin-top:20px}#feedback{min-height:22px;font-size:13px} @media(max-width:680px){.layout{grid-template-columns:1fr}.wide{grid-column:auto}.card{padding:16px}main{padding:18px 12px 45px}}@media(prefers-reduced-motion:reduce){*{transition:none!important}}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#211914">
+  <title>Monitor de cafeína · De'Longhi Dedica</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --fondo: #161310;
+      --tarjeta: #251e19;
+      --campo: #33271f;
+      --borde: #514034;
+      --texto: #fcf2e8;
+      --secundario: #cfbfb0;
+      --cafe: #f3c187;
+      --verde: #a8d5a8;
+      --aviso: #ffcd8e;
+      --rojo: #ffa6a6;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: radial-gradient(ellipse at top, #3b281e 0, var(--fondo) 60%);
+      color: var(--texto);
+      font: 15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+    main { max-width: 940px; margin: 0 auto; padding: 30px 16px 50px; }
+    header { text-align: center; margin-bottom: 24px; }
+    h1 { font-size: clamp(25px, 5vw, 38px); margin: 0; }
+    h2 { font-size: 19px; margin: 0 0 15px; }
+    p { margin: 8px 0; }
+    .intro { color: var(--secundario); max-width: 650px; margin: 7px auto 0; }
+    .etiqueta { color: var(--cafe); font-size: 12px; letter-spacing: 0.13em; text-transform: uppercase; }
+    .rejilla { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+    .tarjeta {
+      border: 1px solid var(--borde);
+      background: var(--tarjeta);
+      border-radius: 17px;
+      padding: 20px;
+      box-shadow: 0 8px 24px #0002;
+    }
+    .ancha { grid-column: 1 / -1; }
+    .campos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .campo { display: grid; align-content: start; gap: 5px; }
+    label { font-size: 13px; color: var(--secundario); }
+    input, button { font: inherit; }
+    input {
+      min-width: 0;
+      width: 100%;
+      border: 1px solid #695142;
+      border-radius: 10px;
+      padding: 10px 11px;
+      background: var(--campo);
+      color: var(--texto);
+    }
+    input:focus-visible, button:focus-visible, summary:focus-visible { outline: 3px solid var(--cafe); outline-offset: 3px; }
+    .resultado-calculo {
+      display: flex;
+      align-items: center;
+      min-height: 47px;
+      padding: 9px 11px;
+      border: 1px solid #81664b;
+      border-radius: 10px;
+      background: #3c3025;
+      color: var(--cafe);
+      font-size: 21px;
+      font-weight: 750;
+      font-variant-numeric: tabular-nums;
+    }
+    button {
+      padding: 10px 15px;
+      border: 0;
+      border-radius: 10px;
+      background: var(--cafe);
+      color: #2c1c10;
+      font-weight: 750;
+      cursor: pointer;
+    }
+    button:hover { filter: brightness(1.06); }
+    button:disabled { cursor: not-allowed; opacity: .5; }
+    .boton-principal { margin-top: 13px; }
+    .boton-secundario { background: #4d3b2e; color: var(--texto); }
+    .boton-borrar { background: #603336; color: #fff; }
+    .boton-pequeno { padding: 7px 11px; font-size: 13px; }
+    .ayuda { color: var(--secundario); font-size: 13px; }
+    details { color: var(--secundario); font-size: 13px; margin-top: 12px; }
+    summary { cursor: pointer; width: fit-content; }
+    details .campo { max-width: 270px; margin-top: 10px; }
+    .sueño-entrada { max-width: 215px; }
+    .hora-limite { font-size: clamp(28px, 4vw, 40px); font-weight: 800; color: var(--cafe); line-height: 1.25; margin: 12px 0 4px; }
+    .bloque-aviso { margin-top: 15px; padding: 12px 14px; border-radius: 10px; border-left: 4px solid var(--verde); background: #3a3026; }
+    .bloque-aviso.advertencia { border-left-color: var(--aviso); }
+    .bloque-aviso.alerta { border-left-color: var(--rojo); }
+    .valores { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+    .valor { background: var(--campo); border-radius: 12px; padding: 16px; min-width: 0; }
+    .valor .nombre { color: var(--secundario); font-size: 13px; }
+    .valor strong { display: block; font-size: clamp(22px, 3vw, 31px); font-variant-numeric: tabular-nums; color: var(--cafe); margin: 7px 0; }
+    .valor .explicacion { color: var(--secundario); font-size: 12px; }
+    .separador { border-top: 1px solid var(--borde); padding-top: 13px; margin-top: 14px; }
+    .registros { display: grid; gap: 9px; margin: 12px 0; }
+    .registro { display: flex; align-items: center; justify-content: space-between; gap: 12px; background: var(--campo); padding: 11px 13px; border-radius: 10px; }
+    .registro small { display: block; color: var(--secundario); }
+    .acciones { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+    #feedback { min-height: 18px; font-size: 13px; margin-top: 7px; color: var(--aviso); }
+    footer { margin-top: 20px; font-size: 12px; color: var(--secundario); }
+
+    @media (max-width: 700px) {
+      main { padding: 18px 12px 44px; }
+      .rejilla { grid-template-columns: 1fr; }
+      .ancha { grid-column: auto; }
+      .tarjeta { padding: 16px; }
+    }
+    @media (max-width: 510px) {
+      .valores { grid-template-columns: 1fr; }
+      .valor { padding: 12px 14px; }
+      .valor strong { font-size: 25px; }
+    }
+    @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+  </style>
 </head>
 <body>
 <main>
-<header><div class="eyebrow">Control personal · Delonghi Dedica</div><h1>☕ Monitor de cafeína</h1><p>Registra tus cafés y calcula una estimación de la cafeína que permanece en tu organismo.</p></header>
-<div class="layout">
-<section class="card"><h2>Registrar una toma</h2><form id="coffeeForm"><div class="fields"><div class="field"><label for="grams">Café molido (g)</label><input id="grams" type="number" min="1" max="30" step="0.5" value="10" required></div><div class="field"><label for="mgPerGram">Cafeína estimada (mg/g)</label><input id="mgPerGram" type="number" min="1" max="25" step="0.5" value="7" required></div><div class="field"><label for="date">Fecha</label><input id="date" type="date" required></div><div class="field"><label for="time">Hora</label><input id="time" type="time" required></div></div><button type="submit">+ Añadir café</button><p class="sub">La cantidad real depende del grano, mezcla y preparación. Los 7 mg/g son solo un supuesto editable.</p></form><div id="feedback" role="status" aria-live="polite"></div></section>
-<section class="card"><h2>Configuración de sueño</h2><div class="fields"><div class="field"><label for="bedtime">Hora habitual de dormir</label><input id="bedtime" type="time" value="23:30"></div><div class="field"><label for="cutoff">Evitar cafeína durante (h)</label><select id="cutoff"><option value="4">4 horas</option><option value="6">6 horas</option><option value="8" selected>8 horas</option><option value="10">10 horas</option><option value="12">12 horas</option></select></div><div class="field"><label for="halfLife">Semivida estimada</label><select id="halfLife"><option value="3">3 horas</option><option value="5" selected>5 horas</option><option value="7">7 horas</option><option value="9">9 horas</option></select></div></div><div id="sleepNotice" class="notice"></div></section>
-<section class="card"><h2>Estado estimado ahora</h2><div class="metric" id="currentMg">0 mg</div><div class="sub">Cafeína restante estimada, no concentración medida en sangre.</div><div class="meter" role="progressbar" aria-label="Escala visual hasta 200 mg" aria-valuemin="0" aria-valuemax="200" aria-valuenow="0" id="meter"><div id="meterFill"></div></div><p id="todaySummary"></p><p id="bedtimeEstimate"></p></section>
-<section class="card"><h2>Registros de hoy</h2><div id="records" class="records"></div><div class="actions"><button type="button" id="clearToday" class="danger small">Borrar los de hoy</button><button type="button" id="exportData" class="secondary small">Exportar JSON</button></div></section>
-<section class="card wide"><h2>Proyección de las próximas 24 horas</h2><div class="chartbox"><svg id="chart" viewBox="0 0 820 260" role="img" aria-label="Curva estimada de cafeína durante las próximas 24 horas"></svg></div><p class="sub">Las tomas futuras registradas se incluyen a partir de su hora. Una curva no predice si podrás dormir.</p></section>
-<section class="card wide"><h2>Detalle por horas</h2><div class="table-wrap"><table><thead><tr><th>Hora</th><th>Estimación restante</th><th>Observación</th></tr></thead><tbody id="projectionRows"></tbody></table></div></section>
-</div><footer>Modelo orientativo: aporte gradual durante 45 minutos y eliminación exponencial según la semivida elegida. No contempla variación individual, embarazo, fármacos, tolerancia o enfermedades. Los datos permanecen en este navegador (localStorage). No sustituye consejos médicos.</footer>
+  <header>
+    <div class="etiqueta">De'Longhi Dedica</div>
+    <h1>☕ Monitor de cafeína</h1>
+    <p class="intro">Apunta tus cafés y consulta cuánto podría quedarte a la hora de dormir, sin cálculos manuales.</p>
+  </header>
+
+  <div class="rejilla">
+    <section class="tarjeta" aria-labelledby="titulo-registro">
+      <h2 id="titulo-registro">Registrar un café</h2>
+      <form id="formularioCafe">
+        <div class="campos">
+          <div class="campo">
+            <label for="gramos">Café molido (g)</label>
+            <input id="gramos" type="number" min="1" max="30" step="0.5" value="10" required>
+          </div>
+          <div class="campo">
+            <label for="cafeinaCalculada">Cafeína estimada</label>
+            <output id="cafeinaCalculada" class="resultado-calculo" for="gramos cafeinaPorGramo">70 mg</output>
+          </div>
+          <div class="campo">
+            <label for="fecha">Fecha</label>
+            <input id="fecha" type="date" required>
+          </div>
+          <div class="campo">
+            <label for="hora">Hora del café</label>
+            <input id="hora" type="time" required>
+          </div>
+        </div>
+        <button type="submit" class="boton-principal">+ Añadir café</button>
+        <p id="formula" class="ayuda">10 g × 7 mg/g = 70 mg estimados.</p>
+        <details>
+          <summary>Cambiar la estimación por gramo (opcional)</summary>
+          <div class="campo">
+            <label for="cafeinaPorGramo">Cafeína estimada por gramo (mg/g)</label>
+            <input id="cafeinaPorGramo" type="number" min="1" max="25" step="0.5" value="7" required>
+          </div>
+        </details>
+      </form>
+      <div id="feedback" role="status" aria-live="polite"></div>
+    </section>
+
+    <section class="tarjeta" aria-labelledby="titulo-sueno">
+      <h2 id="titulo-sueno">¿A qué hora te vas a dormir?</h2>
+      <div class="campo sueño-entrada">
+        <label for="dormir">Hora de acostarte</label>
+        <input id="dormir" type="time" value="23:30">
+      </div>
+      <p class="ayuda">El resto se calcula automáticamente.</p>
+      <div class="separador">
+        <div class="ayuda">Último café recomendado <em>(orientativo)</em></div>
+        <div class="hora-limite" id="ultimoCafe">15:30</div>
+        <p class="ayuda">Referencia de 8 horas antes de acostarte.</p>
+      </div>
+      <div id="avisoSueno" class="bloque-aviso" role="status" aria-live="polite"></div>
+    </section>
+
+    <section class="tarjeta ancha" aria-labelledby="titulo-resumen">
+      <h2 id="titulo-resumen">Tu resumen</h2>
+      <div class="valores">
+        <div class="valor">
+          <div class="nombre">Cafeína estimada ahora</div>
+          <strong id="cafeinaAhora">0 mg</strong>
+          <div class="explicacion">De los cafés registrados.</div>
+        </div>
+        <div class="valor">
+          <div class="nombre">Cafeína estimada al dormir</div>
+          <strong id="cafeinaDormir">0 mg</strong>
+          <div class="explicacion" id="horaDormirTexto">A las 23:30.</div>
+        </div>
+        <div class="valor">
+          <div class="nombre">Café de hoy</div>
+          <strong id="totalCafeinaHoy">0 mg</strong>
+          <div class="explicacion" id="numeroCafes">0 cafés registrados.</div>
+        </div>
+      </div>
+      <p class="ayuda" style="margin-top:15px">Son cantidades aproximadas de cafeína restante, no una medición en sangre ni una predicción del sueño.</p>
+    </section>
+
+    <section class="tarjeta ancha" aria-labelledby="titulo-historial">
+      <h2 id="titulo-historial">Cafés registrados hoy</h2>
+      <div id="registros" class="registros"></div>
+      <div class="acciones">
+        <button type="button" id="borrarHoy" class="boton-borrar boton-pequeno">Borrar cafés de hoy</button>
+        <button type="button" id="exportar" class="boton-secundario boton-pequeno">Guardar historial (JSON)</button>
+      </div>
+    </section>
+  </div>
+
+  <footer>
+    Cálculos automáticos con supuestos generales: semivida de cafeína de 5 horas,
+    recomendación orientativa de evitar cafeína 8 horas antes de dormir y estimación inicial de 7 mg de cafeína
+    por gramo de café molido. Para simplificar, el modelo considera la dosis disponible desde el momento de la toma.
+    La extracción real, el metabolismo y los efectos sobre el sueño varían entre personas.
+    Los registros permanecen en este navegador.
+  </footer>
 </main>
 <script>
-'use strict';
-const STORAGE='dedica_monitor_v2';
-const $=id=>document.getElementById(id);
-const formatter=new Intl.DateTimeFormat('es-ES',{hour:'2-digit',minute:'2-digit'});
-const fullDate=new Intl.DateTimeFormat('es-ES',{day:'2-digit',month:'2-digit'});
-const DEFAULTS={records:[],bedtime:'23:30',cutoff:8,halfLife:5,mgPerGram:7};
-let state=load();
-function load(){try{const raw=JSON.parse(localStorage.getItem(STORAGE));if(!raw||!Array.isArray(raw.records))return structuredClone(DEFAULTS);return {...DEFAULTS,...raw,records:raw.records.filter(r=>Number.isFinite(r.at)&&Number.isFinite(r.mg)&&r.mg>0&&typeof r.id==='string')};}catch{return structuredClone(DEFAULTS)}}
-function save(){try{localStorage.setItem(STORAGE,JSON.stringify(state));$('feedback').textContent='';}catch{$('feedback').textContent='No se pudieron guardar los cambios en este navegador.'}}
-const pad=n=>String(n).padStart(2,'0');
-function localDate(d){return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`}
-function localTime(d){return `${pad(d.getHours())}:${pad(d.getMinutes())}`}
-function parseLocal(date,time){const [y,m,day]=date.split('-').map(Number),[h,min]=time.split(':').map(Number);const d=new Date(y,m-1,day,h,min);return d.getFullYear()===y&&d.getMonth()===m-1&&d.getDate()===day&&d.getHours()===h&&d.getMinutes()===min?d.getTime():NaN}
-function todayRecords(now){return state.records.filter(r=>localDate(new Date(r.at))===localDate(now)).sort((a,b)=>a.at-b.at)}
-function estimate(at){const half=state.halfLife*3600000,absorption=45*60000;return state.records.reduce((sum,r)=>{const elapsed=at-r.at;if(elapsed<0)return sum;const factor=elapsed<absorption?elapsed/absorption:Math.pow(.5,(elapsed-absorption)/half);return sum+r.mg*factor},0)}
-function nextSleep(now){const day=localDate(now);let sleep=parseLocal(day,state.bedtime);if(sleep<=now.getTime())sleep+=24*3600000;return sleep}
-function noteFromHours(h){return h<=0?'A la hora prevista de dormir':`${h} h después de ahora`}
-function text(tag,value){const el=document.createElement(tag);el.textContent=value;return el}
-function render(){const now=new Date(),today=todayRecords(now),total=today.reduce((s,r)=>s+r.mg,0),current=estimate(now.getTime()),sleep=nextSleep(now),remaining=estimate(sleep),cutoffAt=sleep-state.cutoff*3600000;
-$('currentMg').textContent=`${current.toFixed(1)} mg`;$('todaySummary').textContent=`Hoy: ${today.length} ${today.length===1?'café':'cafés'} · ${total.toFixed(0)} mg consumidos estimados`;
-$('bedtimeEstimate').textContent=`A la próxima hora de dormir (${formatter.format(sleep)}): ~${remaining.toFixed(1)} mg restantes.`;
-$('meterFill').style.width=`${Math.min(100,current/200*100)}%`;$('meter').setAttribute('aria-valuenow',String(Math.min(200,Math.round(current))));
-const late=today.filter(r=>r.at>cutoffAt&&r.at<=sleep);const n=$('sleepNotice');n.className='notice '+(late.length?'bad':'ok');n.textContent=`Referencia orientativa: evitar café después de las ${formatter.format(cutoffAt)} (${state.cutoff} h antes de acostarte). ${late.length?`${late.length} toma(s) de hoy posteriores a esa hora podrían dificultar el sueño.`:'No hay tomas de hoy registradas después de esa referencia para el próximo descanso.'} No es una hora universalmente segura.`;
-const container=$('records');container.replaceChildren();if(!today.length)container.append(text('p','Todavía no has registrado cafés hoy.'));for(const r of today){const item=document.createElement('div');item.className='record';const info=document.createElement('div');info.append(text('strong',`${r.grams} g · ${r.mg.toFixed(0)} mg estimados`));info.append(text('small',formatter.format(r.at)));const btn=text('button','Eliminar');btn.type='button';btn.className='danger small';btn.setAttribute('aria-label',`Eliminar café de las ${formatter.format(r.at)}`);btn.addEventListener('click',()=>{state.records=state.records.filter(x=>x.id!==r.id);save();render()});item.append(info,btn);container.append(item)}$('clearToday').disabled=!today.length;
-renderTable(now);renderChart(now,sleep)}
-function renderTable(now){const tbody=$('projectionRows');tbody.replaceChildren();for(let i=0;i<=24;i++){const d=new Date(now.getTime()+i*3600000),mg=estimate(d.getTime()),tr=document.createElement('tr');if(i===0)tr.className='highlight';[`${fullDate.format(d)} ${formatter.format(d)}`,`${mg.toFixed(1)} mg`,noteFromHours(i)].forEach(v=>tr.append(text('td',v)));tbody.append(tr)}}
-function renderChart(now,sleep){const svg=$('chart');svg.replaceChildren();const NS='http://www.w3.org/2000/svg',left=54,top=16,w=744,h=198;const pts=Array.from({length:97},(_,i)=>({x:i/4,y:estimate(now.getTime()+i*15*60000)}));const max=Math.max(40,Math.ceil(Math.max(...pts.map(p=>p.y))/40)*40);function el(tag,attrs,content){const n=document.createElementNS(NS,tag);for(const [k,v]of Object.entries(attrs))n.setAttribute(k,String(v));if(content!==undefined)n.textContent=content;svg.append(n);return n}const X=v=>left+v/24*w,Y=v=>top+h-v/max*h;
-for(let i=0;i<=4;i++){const amount=i*max/4;el('line',{x1:left,y1:Y(amount),x2:left+w,y2:Y(amount),class:'chart-grid'});el('text',{x:4,y:Y(amount)+4,class:'chart-label'},`${amount.toFixed(0)} mg`)}for(let i=0;i<=24;i+=4)el('text',{x:X(i)-10,y:245,class:'chart-label'},`${i} h`);
-const path=pts.map((p,i)=>`${i?'L':'M'}${X(p.x).toFixed(2)},${Y(p.y).toFixed(2)}`).join(' ');el('path',{d:path,fill:'none',stroke:'#efbb7b','stroke-width':3,'stroke-linejoin':'round'});
-const sleepHour=(sleep-now.getTime())/3600000;if(sleepHour>=0&&sleepHour<=24){el('line',{x1:X(sleepHour),y1:top,x2:X(sleepHour),y2:top+h,stroke:'#9bd1a1','stroke-dasharray':'5 5'});el('text',{x:Math.min(X(sleepHour)+5,740),y:13,fill:'#9bd1a1','font-size':12},'Dormir')}}
-$('coffeeForm').addEventListener('submit',e=>{e.preventDefault();const grams=Number($('grams').value),mgPerGram=Number($('mgPerGram').value),at=parseLocal($('date').value,$('time').value);if(!(grams>=1&&grams<=30&&mgPerGram>=1&&mgPerGram<=25&&Number.isFinite(at))){$('feedback').textContent='Revisa los gramos, la cafeína por gramo, la fecha y la hora.';return}if(at>Date.now()+5*60000&&!confirm('La fecha es futura. ¿Quieres registrar una toma prevista?'))return;
-state.mgPerGram=mgPerGram;state.records.push({id:crypto.randomUUID?crypto.randomUUID():`${Date.now()}-${Math.random()}`,at,grams,mg:grams*mgPerGram});save();render()});
-$('clearToday').addEventListener('click',()=>{if(!confirm('¿Eliminar todos los cafés registrados hoy?'))return;const today=localDate(new Date());state.records=state.records.filter(r=>localDate(new Date(r.at))!==today);save();render()});
-$('exportData').addEventListener('click',()=>{const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`cafes-${localDate(new Date())}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)});
-for(const [id,key,cast]of [['bedtime','bedtime',String],['cutoff','cutoff',Number],['halfLife','halfLife',Number]])$(id).addEventListener('change',()=>{state[key]=cast($(id).value);save();render()});
-function syncInputs(){const now=new Date();$('date').value=localDate(now);$('time').value=localTime(now);$('bedtime').value=state.bedtime;$('cutoff').value=String(state.cutoff);$('halfLife').value=String(state.halfLife);$('mgPerGram').value=String(state.mgPerGram)}
-syncInputs();render();setInterval(()=>{render();if($('date').value===localDate(new Date(Date.now()-60000)))$('date').value=localDate(new Date())},60000);
+  'use strict';
+
+  // Valores generales internos: el usuario solo necesita elegir la hora de acostarse.
+  const SEMIVIDA_HORAS = 5;
+  const MARGEN_SUENO_HORAS = 8;
+  const CAFEINA_POR_GRAMO_INICIAL = 7;
+  const ALMACENAMIENTO = 'dedica_monitor_v2'; // Mantiene registros del HTML anterior.
+  const $ = (id) => document.getElementById(id);
+  const rellenar = (numero) => String(numero).padStart(2, '0');
+  const formatoHora = new Intl.DateTimeFormat('es-ES', { hour: '2-digit', minute: '2-digit' });
+  const formatoNumero = (n) => n.toLocaleString('es-ES', { maximumFractionDigits: 1 });
+
+  function fechaLocal(d) {
+    return `${d.getFullYear()}-${rellenar(d.getMonth() + 1)}-${rellenar(d.getDate())}`;
+  }
+
+  function horaLocal(d) {
+    return `${rellenar(d.getHours())}:${rellenar(d.getMinutes())}`;
+  }
+
+  function convertirFecha(fecha, hora) {
+    const fechaValida = /^\d{4}-\d{2}-\d{2}$/.test(fecha);
+    const horaValida = /^\d{2}:\d{2}$/.test(hora);
+    if (!fechaValida || !horaValida) return NaN;
+    const [año, mes, dia] = fecha.split('-').map(Number);
+    const [h, m] = hora.split(':').map(Number);
+    const d = new Date(año, mes - 1, dia, h, m);
+    if (d.getFullYear() !== año || d.getMonth() !== mes - 1 || d.getDate() !== dia ||
+        d.getHours() !== h || d.getMinutes() !== m) return NaN;
+    return d.getTime();
+  }
+
+  function cargarDatos() {
+    const base = { records: [], bedtime: '23:30', mgPerGram: CAFEINA_POR_GRAMO_INICIAL };
+    try {
+      const almacenado = JSON.parse(localStorage.getItem(ALMACENAMIENTO));
+      if (!almacenado || !Array.isArray(almacenado.records)) return base;
+      return {
+        records: almacenado.records.filter((r) =>
+          typeof r.id === 'string' && Number.isFinite(r.at) &&
+          Number.isFinite(r.mg) && r.mg > 0 && Number.isFinite(r.grams)
+        ),
+        bedtime: /^([01]\d|2[0-3]):[0-5]\d$/.test(almacenado.bedtime)
+          ? almacenado.bedtime : base.bedtime,
+        mgPerGram: Number.isFinite(almacenado.mgPerGram) && almacenado.mgPerGram >= 1 && almacenado.mgPerGram <= 25
+          ? almacenado.mgPerGram : base.mgPerGram
+      };
+    } catch {
+      return base;
+    }
+  }
+
+  let datos = cargarDatos();
+
+  function guardarDatos() {
+    try {
+      localStorage.setItem(ALMACENAMIENTO, JSON.stringify(datos));
+      $('feedback').textContent = '';
+    } catch {
+      $('feedback').textContent = 'No se pudieron guardar los datos en este navegador.';
+    }
+  }
+
+  // Aproximación sencilla: se aplica eliminación exponencial desde la toma.
+  // Se suman todas las tomas registradas, también las de días anteriores.
+  function cafeinaRestante(instante) {
+    let suma = 0;
+    for (const cafe of datos.records) {
+      const horasTranscurridas = (instante - cafe.at) / 3600000;
+      if (horasTranscurridas < 0) continue;
+      suma += cafe.mg * Math.pow(0.5, horasTranscurridas / SEMIVIDA_HORAS);
+    }
+    return suma;
+  }
+
+  function proximaHoraDormir(ahora) {
+    const [h, m] = datos.bedtime.split(':').map(Number);
+    const fecha = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate(), h, m);
+    if (fecha.getTime() <= ahora.getTime()) fecha.setDate(fecha.getDate() + 1);
+    return fecha;
+  }
+
+  function cafesHoy(ahora) {
+    const dia = fechaLocal(ahora);
+    return datos.records
+      .filter((r) => fechaLocal(new Date(r.at)) === dia)
+      .sort((a, b) => a.at - b.at);
+  }
+
+  function textoElemento(etiqueta, valor) {
+    const elemento = document.createElement(etiqueta);
+    elemento.textContent = valor;
+    return elemento;
+  }
+
+  function actualizarCalculoGramos() {
+    const gramos = Number($('gramos').value);
+    const porGramo = Number($('cafeinaPorGramo').value);
+    const valido = $('gramos').value.trim() !== '' && $('cafeinaPorGramo').value.trim() !== '' &&
+      Number.isFinite(gramos) && gramos >= 1 && gramos <= 30 &&
+      Number.isFinite(porGramo) && porGramo >= 1 && porGramo <= 25;
+    $('cafeinaCalculada').textContent = valido ? `${formatoNumero(gramos * porGramo)} mg` : '—';
+    $('formula').textContent = valido
+      ? `${formatoNumero(gramos)} g × ${formatoNumero(porGramo)} mg/g = ${formatoNumero(gramos * porGramo)} mg estimados.`
+      : 'Introduce unos gramos y una estimación por gramo válidos.';
+  }
+
+  function actualizarPantalla() {
+    const ahora = new Date();
+    const dormir = proximaHoraDormir(ahora);
+    const horaTope = new Date(dormir.getTime() - MARGEN_SUENO_HORAS * 3600000);
+    const hoy = cafesHoy(ahora);
+    const totalHoy = hoy.reduce((suma, c) => suma + c.mg, 0);
+    const ahoraMg = cafeinaRestante(ahora.getTime());
+    const dormirMg = cafeinaRestante(dormir.getTime());
+
+    $('ultimoCafe').textContent = formatoHora.format(horaTope);
+    $('cafeinaAhora').textContent = `${formatoNumero(ahoraMg)} mg`;
+    $('cafeinaDormir').textContent = `${formatoNumero(dormirMg)} mg`;
+    $('horaDormirTexto').textContent = `A las ${formatoHora.format(dormir)}, con los cafés ya registrados.`;
+    $('totalCafeinaHoy').textContent = `${formatoNumero(totalHoy)} mg`;
+    $('numeroCafes').textContent = `${hoy.length} ${hoy.length === 1 ? 'café registrado' : 'cafés registrados'}.`;
+
+    const fueraDeHora = hoy.filter((c) => c.at > horaTope.getTime() && c.at <= dormir.getTime());
+    const aviso = $('avisoSueno');
+    aviso.className = 'bloque-aviso';
+    if (fueraDeHora.length > 0) {
+      aviso.classList.add('alerta');
+      aviso.textContent = `${fueraDeHora.length === 1 ? 'Has registrado un café' : `Has registrado ${fueraDeHora.length} cafés`} después de las ${formatoHora.format(horaTope)}. Podría dificultar el descanso.`;
+    } else if (ahora.getTime() >= horaTope.getTime()) {
+      aviso.classList.add('advertencia');
+      aviso.textContent = 'Ya has superado la hora orientativa del último café. Lo recomendable sería evitar nuevas tomas hasta después de dormir.';
+    } else {
+      aviso.textContent = 'Todavía no has llegado a la hora orientativa de dejar el café. Esta referencia no garantiza un buen descanso.';
+    }
+
+    const contenedor = $('registros');
+    contenedor.replaceChildren();
+    if (hoy.length === 0) {
+      contenedor.append(textoElemento('p', 'Aún no has registrado ningún café hoy.'));
+    }
+    for (const cafe of hoy) {
+      const fila = textoElemento('div', '');
+      fila.className = 'registro';
+      const detalle = textoElemento('div', '');
+      detalle.append(textoElemento('strong', `${formatoNumero(cafe.grams)} g · ${formatoNumero(cafe.mg)} mg estimados`));
+      detalle.append(textoElemento('small', `A las ${formatoHora.format(new Date(cafe.at))}`));
+      const borrar = textoElemento('button', 'Eliminar');
+      borrar.type = 'button';
+      borrar.className = 'boton-borrar boton-pequeno';
+      borrar.setAttribute('aria-label', `Eliminar café de las ${formatoHora.format(new Date(cafe.at))}`);
+      borrar.addEventListener('click', () => {
+        datos.records = datos.records.filter((r) => r.id !== cafe.id);
+        guardarDatos();
+        actualizarPantalla();
+      });
+      fila.append(detalle, borrar);
+      contenedor.append(fila);
+    }
+    $('borrarHoy').disabled = hoy.length === 0;
+  }
+
+  $('gramos').addEventListener('input', actualizarCalculoGramos);
+  $('cafeinaPorGramo').addEventListener('input', actualizarCalculoGramos);
+
+  $('dormir').addEventListener('change', () => {
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test($('dormir').value)) return;
+    datos.bedtime = $('dormir').value;
+    guardarDatos();
+    actualizarPantalla();
+  });
+
+  $('formularioCafe').addEventListener('submit', (evento) => {
+    evento.preventDefault();
+    const gramos = Number($('gramos').value);
+    const porGramo = Number($('cafeinaPorGramo').value);
+    const momento = convertirFecha($('fecha').value, $('hora').value);
+    if (!(gramos >= 1 && gramos <= 30 && porGramo >= 1 && porGramo <= 25 && Number.isFinite(momento))) {
+      $('feedback').textContent = 'Revisa los gramos, la fecha y la hora del café.';
+      return;
+    }
+    if (momento > Date.now() + 5 * 60000 &&
+        !confirm('Has indicado una hora futura. ¿Quieres registrar ese café previsto?')) return;
+
+    datos.mgPerGram = porGramo;
+    datos.records.push({
+      id: typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`,
+      at: momento,
+      grams: gramos,
+      mg: gramos * porGramo
+    });
+    guardarDatos();
+    actualizarPantalla();
+  });
+
+  $('borrarHoy').addEventListener('click', () => {
+    if (!confirm('¿Eliminar todos los cafés registrados hoy?')) return;
+    const dia = fechaLocal(new Date());
+    datos.records = datos.records.filter((r) => fechaLocal(new Date(r.at)) !== dia);
+    guardarDatos();
+    actualizarPantalla();
+  });
+
+  $('exportar').addEventListener('click', () => {
+    const blob = new Blob([JSON.stringify(datos, null, 2)], { type: 'application/json' });
+    const enlace = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = enlace;
+    a.download = `registro-cafeina-${fechaLocal(new Date())}.json`;
+    document.body.append(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(enlace), 1000);
+  });
+
+  // Inicio
+  const ahora = new Date();
+  $('fecha').value = fechaLocal(ahora);
+  $('hora').value = horaLocal(ahora);
+  $('dormir').value = datos.bedtime;
+  $('cafeinaPorGramo').value = String(datos.mgPerGram);
+  actualizarCalculoGramos();
+  actualizarPantalla();
+  setInterval(() => {
+    actualizarPantalla();
+    const actual = new Date();
+    // Actualizar la fecha por defecto si se queda abierta durante la medianoche.
+    if ($('fecha').value === fechaLocal(new Date(actual.getTime() - 60000))) {
+      $('fecha').value = fechaLocal(actual);
+    }
+  }, 60000);
 </script>
 </body>
 </html>
