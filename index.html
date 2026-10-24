@@ -118,6 +118,17 @@
     .registro { display: flex; align-items: center; justify-content: space-between; gap: 12px; background: var(--campo); padding: 11px 13px; border-radius: 10px; }
     .registro small { display: block; color: var(--secundario); }
     .acciones { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+    .nube-campos { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+    #estadoNube { margin-top: 12px; padding: 10px 12px; border-radius: 10px;
+      background: var(--campo); color: var(--secundario); font-size: 13px; }
+    #estadoNube[data-tipo="bien"] { color: var(--verde); }
+    #estadoNube[data-tipo="error"] { color: var(--rojo); }
+    #estadoNube[data-tipo="espera"] { color: var(--aviso); }
+    .nube-acciones { display:flex; flex-wrap:wrap; gap:10px; margin-top:12px; }
+    .nube-ayuda { font-size:13px; color:var(--secundario); }
+    .seccion-nube details { font-size:15px; }
+    .seccion-nube summary { color:var(--cafe); font-weight:700; }
+    @media (max-width: 510px) { .nube-campos { grid-template-columns:1fr; } }
     #feedback { min-height: 18px; font-size: 13px; margin-top: 7px; color: var(--aviso); }
     footer { margin-top: 20px; font-size: 12px; color: var(--secundario); }
 
@@ -145,6 +156,29 @@
   </header>
 
   <div class="rejilla">
+    <section class="tarjeta ancha seccion-nube" aria-labelledby="titulo-nube">
+      <h2 id="titulo-nube">☁️ Sincronización PC y móvil</h2>
+      <p class="nube-ayuda">Los cafés se guardan en una hoja de Google Sheets. Los cambios sin Internet quedan pendientes y se envían después.</p>
+      <div id="estadoNube" role="status" aria-live="polite">Datos locales. Configura Google Sheets para activar la sincronización.</div>
+      <details id="detallesNube">
+        <summary>Conectar o cambiar Google Sheets</summary>
+        <div class="nube-campos">
+          <div class="campo">
+            <label for="urlNube">URL de Google Apps Script (terminada en /exec)</label>
+            <input id="urlNube" type="url" placeholder="https://script.google.com/macros/s/.../exec" autocomplete="off" spellcheck="false">
+          </div>
+          <div class="campo">
+            <label for="claveNube">Clave privada de sincronización</label>
+            <input id="claveNube" type="password" placeholder="La misma clave en PC y móvil" autocomplete="off" spellcheck="false">
+          </div>
+        </div>
+        <div class="nube-acciones">
+          <button id="conectarNube" type="button">Guardar y conectar</button>
+          <button id="actualizarNube" class="boton-secundario" type="button">Sincronizar ahora</button>
+        </div>
+        <p class="nube-ayuda">No incluyas la clave en el código publicado en GitHub. Se guardará solo en este navegador.</p>
+      </details>
+    </section>
     <section class="tarjeta" aria-labelledby="titulo-registro">
       <h2 id="titulo-registro">Registrar un café</h2>
       <form id="formularioCafe">
@@ -240,7 +274,9 @@
       <div id="registros" class="registros"></div>
       <div class="acciones">
         <button type="button" id="borrarHoy" class="boton-borrar boton-pequeno">Borrar cafés de hoy</button>
-        <button type="button" id="exportar" class="boton-secundario boton-pequeno">Guardar historial (JSON)</button>
+        <button type="button" id="exportar" class="boton-secundario boton-pequeno">Guardar copia JSON</button>
+        <button type="button" id="importar" class="boton-secundario boton-pequeno">Importar copia JSON</button>
+        <input id="archivoImportar" type="file" accept=".json,application/json" hidden>
       </div>
     </section>
   </div>
@@ -251,7 +287,8 @@
     por gramo de café molido. La absorción se modela gradualmente, con un pico aproximado a los 45–50 minutos
     para una toma aislada (puede variar mucho entre personas). «Subida», «pico», «meseta» y «bajada» indican
     tendencias de una estimación, no efectos físicos comprobados. La extracción real, el metabolismo y el sueño varían.
-    Los registros permanecen en este navegador.
+    Los registros se sincronizan con Google Sheets si configuras el servicio; mientras tanto queda una copia local.
+    No es una medición ni un diagnóstico clínico.
   </footer>
 </main>
 <script>
@@ -294,7 +331,21 @@
     const base = { records: [], bedtime: '23:30', mgPerGram: CAFEINA_POR_GRAMO_INICIAL };
     try {
       const almacenado = JSON.parse(localStorage.getItem(ALMACENAMIENTO));
-      if (!almacenado || !Array.isArray(almacenado.records)) return base;
+      if (!almacenado || !Array.isArray(almacenado.records)) {
+        // Compatibilidad adicional con la primera versión: solo registraba HH:mm.
+        // Al no incluir fecha, se interpretan como tomas de hoy.
+        const antiguo = JSON.parse(localStorage.getItem('dedica_coffees') || 'null');
+        if (Array.isArray(antiguo)) {
+          const dia = fechaLocal(new Date());
+          base.records = antiguo.map((r, i) => {
+            const at = convertirFecha(dia, r.time);
+            const grams = Number(r.grams);
+            return { id: `legacy_${String(r.id || i).replace(/[^A-Za-z0-9_.:-]/g, '_')}`,
+              at, grams, mg: grams * 7 };
+          }).filter(r => Number.isFinite(r.at) && r.grams >= 1 && r.grams <= 30);
+        }
+        return base;
+      }
       return {
         records: almacenado.records.filter((r) =>
           typeof r.id === 'string' && Number.isFinite(r.at) &&
@@ -311,6 +362,283 @@
   }
 
   let datos = cargarDatos();
+
+  // --- Sincronización entre dispositivos, usando Google Sheets / Apps Script ---
+  // El HTML público no contiene ni la URL privada ni la clave de sincronización.
+  // Ambos valores se configuran por separado en cada dispositivo.
+  const CLAVE_NUBE = 'dedica_google_sheets_v1';
+  const CLAVE_COLA = 'dedica_google_sheets_pendientes_v1';
+  const CLAVE_MIGRADO = 'dedica_google_sheets_migracion_finalizada_v1';
+  const CLAVE_ORIGEN = 'dedica_google_sheets_copia_antes_migracion_v1';
+  let nube = leerJSON(CLAVE_NUBE, { url: '', clave: '' });
+  if (!nube || typeof nube.url !== 'string' || typeof nube.clave !== 'string') {
+    nube = { url: '', clave: '' };
+  }
+  let pendientes = leerJSON(CLAVE_COLA, []);
+  if (!Array.isArray(pendientes)) pendientes = [];
+  pendientes = pendientes.filter(e => e && typeof e.opId === 'string');
+  let eventosNube = [];
+  let sincronizando = false;
+  let sincronizacionSolicitada = false;
+  let migrado = localStorage.getItem(CLAVE_MIGRADO) === '1';
+  // Guardar una fotografía de los registros locales ANTES de descargar los de la nube.
+  // Permite reintentar la migración sin perder nunca la copia anterior del PC.
+  if (!migrado && localStorage.getItem(CLAVE_ORIGEN) === null) {
+    guardarJSON(CLAVE_ORIGEN, datos);
+  }
+
+  function leerJSON(clave, porDefecto) {
+    try {
+      const texto = localStorage.getItem(clave);
+      return texto ? JSON.parse(texto) : porDefecto;
+    } catch { return porDefecto; }
+  }
+
+  function guardarJSON(clave, valor) {
+    try { localStorage.setItem(clave, JSON.stringify(valor)); return true; }
+    catch { return false; }
+  }
+
+  function idUnico() {
+    return typeof crypto !== 'undefined' && crypto.randomUUID
+      ? crypto.randomUUID() : `${Date.now()}_${Math.random().toString(36).slice(2)}`;
+  }
+
+  function estadoNube(mensaje, tipo = '') {
+    const elemento = $('estadoNube');
+    elemento.textContent = mensaje;
+    elemento.dataset.tipo = tipo;
+  }
+
+  function configuradaNube() {
+    return /^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/.test(nube.url) &&
+      typeof nube.clave === 'string' && nube.clave.length >= 24;
+  }
+
+  function guardarPendientes() {
+    guardarJSON(CLAVE_COLA, pendientes);
+  }
+
+  function ponerPendiente(evento) {
+    pendientes.push({ opId: `op_${idUnico()}`, ...evento });
+    guardarPendientes();
+    if (configuradaNube()) {
+      estadoNube(`Guardado aquí. ${pendientes.length} cambios pendientes de sincronizar…`, 'espera');
+      solicitarSincronizacion();
+    } else {
+      estadoNube('Guardado solo en este dispositivo. Configura Google Sheets para sincronizar.', 'espera');
+    }
+  }
+
+  function solicitarSincronizacion() {
+    if (sincronizando) {
+      sincronizacionSolicitada = true;
+      return;
+    }
+    void sincronizar();
+  }
+
+  // Lectura JSONP: Apps Script ContentService no expone una API CORS clásica.
+  // La consulta solo LEE datos, protegida por una clave larga no publicada en GitHub.
+  function leerNube() {
+    return new Promise((resolve, reject) => {
+      if (!configuradaNube()) { reject(new Error('Configuración incompleta.')); return; }
+      const callback = `cafeinaCallback_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+      const etiqueta = document.createElement('script');
+      let terminado = false;
+      let temporizador;
+      function limpiar() {
+        clearTimeout(temporizador);
+        if (etiqueta.parentNode) etiqueta.remove();
+        try { delete window[callback]; } catch { window[callback] = undefined; }
+      }
+      window[callback] = (respuesta) => {
+        if (terminado) return;
+        terminado = true;
+        limpiar();
+        if (!respuesta || !respuesta.ok) reject(new Error(respuesta?.error || 'Error al leer Google Sheets.'));
+        else if (!Array.isArray(respuesta.eventos)) reject(new Error('Respuesta inesperada de Sheets.'));
+        else resolve(respuesta.eventos);
+      };
+      etiqueta.onerror = () => {
+        if (terminado) return;
+        terminado = true;
+        limpiar();
+        reject(new Error('No se ha podido acceder al script. Comprueba la URL y los permisos.'));
+      };
+      temporizador = setTimeout(() => {
+        if (terminado) return;
+        terminado = true;
+        limpiar();
+        reject(new Error('La lectura de Google Sheets ha tardado demasiado.'));
+      }, 22000);
+      etiqueta.src = `${nube.url}?callback=${encodeURIComponent(callback)}&clave=${encodeURIComponent(nube.clave)}&t=${Date.now()}`;
+      document.head.appendChild(etiqueta);
+    });
+  }
+
+  // Una petición POST sin CORS no entrega al navegador una confirmación legible.
+  // Por eso después SIEMPRE comprobamos en Sheets qué IDs se guardaron realmente.
+  async function escribirNube(eventos) {
+    await fetch(nube.url, {
+      method: 'POST',
+      mode: 'no-cors',
+      credentials: 'omit',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ clave: nube.clave, eventos })
+    });
+  }
+
+  function prepararMigracion(eventosRemotos) {
+    if (migrado) return;
+    const origen = leerJSON(CLAVE_ORIGEN, null);
+    if (!origen || !Array.isArray(origen.records)) return;
+    const yaEnNube = new Set(eventosRemotos.map(e => e.opId));
+    const yaEnCola = new Set(pendientes.map(e => e.opId));
+    const importar = [];
+    for (const registro of origen.records) {
+      if (typeof registro.id !== 'string' || !Number.isFinite(registro.at) ||
+          !Number.isFinite(registro.grams) || !Number.isFinite(registro.mg) ||
+          registro.grams <= 0 || registro.grams > 30 || registro.mg <= 0 || registro.mg > 750) continue;
+      const opId = `mig_${registro.id}`;
+      if (!yaEnNube.has(opId) && !yaEnCola.has(opId)) {
+        importar.push({ opId, tipo: 'add', id: registro.id,
+          at: registro.at, grams: registro.grams, mg: registro.mg });
+      }
+    }
+    // Si la nube no tenía ajustes, trasladar los del navegador antiguo.
+    // Una instalación nueva sin datos no debe sobrescribir la configuración del PC.
+    const hayHistorialLocal = origen.records.length > 0;
+    const ajustesEnNube = new Set(eventosRemotos.filter(e => e.tipo === 'setting').map(e => e.id));
+    if (hayHistorialLocal && !ajustesEnNube.has('bedtime') && !yaEnCola.has('mig_setting_bedtime') &&
+        !yaEnNube.has('mig_setting_bedtime') &&
+        /^([01]\d|2[0-3]):[0-5]\d$/.test(origen.bedtime || '')) {
+      importar.push({ opId: 'mig_setting_bedtime', tipo: 'setting', id: 'bedtime', valor: origen.bedtime });
+    }
+    if (hayHistorialLocal && !ajustesEnNube.has('mgPerGram') && !yaEnCola.has('mig_setting_mgPerGram') &&
+        !yaEnNube.has('mig_setting_mgPerGram') &&
+        Number.isFinite(origen.mgPerGram) && origen.mgPerGram >= 1 && origen.mgPerGram <= 25) {
+      importar.push({ opId: 'mig_setting_mgPerGram', tipo: 'setting', id: 'mgPerGram', valor: origen.mgPerGram });
+    }
+    if (importar.length) {
+      // Las tomas antiguas van antes de los cambios hechos con esta versión.
+      pendientes = [...importar, ...pendientes];
+      guardarPendientes();
+    }
+  }
+
+  function estadoDeEventos(eventos) {
+    const registros = new Map();
+    const borrados = new Set();
+    const resultado = { records: [], bedtime: '23:30', mgPerGram: CAFEINA_POR_GRAMO_INICIAL };
+    for (const e of eventos) {
+      if (!e || typeof e.id !== 'string') continue;
+      if (e.tipo === 'add') {
+        if (borrados.has(e.id) || registros.has(e.id)) continue;
+        if (!Number.isFinite(e.at) || !Number.isFinite(e.grams) || !Number.isFinite(e.mg) ||
+          e.at < 1 || e.grams <= 0 || e.grams > 30 || e.mg <= 0 || e.mg > 750) continue;
+        registros.set(e.id, { id: e.id, at: e.at, grams: e.grams, mg: e.mg });
+      } else if (e.tipo === 'delete') {
+        borrados.add(e.id);
+        registros.delete(e.id);
+      } else if (e.tipo === 'setting' && e.id === 'bedtime' &&
+                 /^([01]\d|2[0-3]):[0-5]\d$/.test(String(e.valor))) {
+        resultado.bedtime = String(e.valor);
+      } else if (e.tipo === 'setting' && e.id === 'mgPerGram' &&
+                 Number(e.valor) >= 1 && Number(e.valor) <= 25) {
+        resultado.mgPerGram = Number(e.valor);
+      }
+    }
+    resultado.records = Array.from(registros.values());
+    return resultado;
+  }
+
+  function incorporarRespuesta(eventos) {
+    eventosNube = eventos;
+    const ids = new Set(eventos.map(e => String(e.opId)));
+    pendientes = pendientes.filter(e => !ids.has(e.opId));
+    guardarPendientes();
+    if (!migrado && !pendientes.some(e => e.opId.startsWith('mig_'))) {
+      migrado = true;
+      try { localStorage.setItem(CLAVE_MIGRADO, '1'); } catch {}
+    }
+    // El historial compartido es la base; operaciones locales no confirmadas encima.
+    datos = estadoDeEventos([...eventosNube, ...pendientes]);
+    guardarDatos();
+    $('dormir').value = datos.bedtime;
+    $('cafeinaPorGramo').value = String(datos.mgPerGram);
+    actualizarCalculoGramos();
+    actualizarPantalla();
+  }
+
+  async function sincronizar() {
+    if (!configuradaNube() || sincronizando) return;
+    sincronizando = true;
+    sincronizacionSolicitada = false;
+    estadoNube('Conectando con Google Sheets…', 'espera');
+    try {
+      let eventos = await leerNube();
+      prepararMigracion(eventos);
+      incorporarRespuesta(eventos);
+      if (pendientes.length) {
+        const lote = pendientes.slice(0, 75);
+        estadoNube(`Enviando ${lote.length} cambio(s) a Google Sheets…`, 'espera');
+        await escribirNube(lote);
+        // No asumir éxito de POST opaco: comprobar leyendo lo guardado.
+        await new Promise(r => setTimeout(r, 950));
+        eventos = await leerNube();
+        incorporarRespuesta(eventos);
+      }
+      if (pendientes.length) {
+        estadoNube(`${pendientes.length} cambios pendientes; se reintentará la sincronización.`, 'espera');
+      } else {
+        estadoNube(`Sincronizado con Google Sheets · ${horaLocal(new Date())}`, 'bien');
+      }
+    } catch (error) {
+      estadoNube(`Sin conexión con Sheets: ${error.message}. Los cambios siguen guardados en este dispositivo.`, 'error');
+    } finally {
+      sincronizando = false;
+      if (sincronizacionSolicitada && configuradaNube()) {
+        setTimeout(() => void sincronizar(), 500);
+      }
+    }
+  }
+
+  function configurarNube() {
+    const url = $('urlNube').value.trim().split('?')[0].replace(/\/$/, '');
+    const clave = $('claveNube').value.trim();
+    const prueba = { url, clave };
+    if (!/^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/.test(prueba.url)) {
+      estadoNube('Pega la URL de implementación que termina en /exec.', 'error');
+      return;
+    }
+    if (clave.length < 24) {
+      estadoNube('Utiliza la misma clave privada de al menos 24 caracteres que pusiste en Apps Script.', 'error');
+      return;
+    }
+    nube = prueba;
+    guardarJSON(CLAVE_NUBE, nube);
+    solicitarSincronizacion();
+  }
+
+  function importarCopia(historial) {
+    if (!historial || !Array.isArray(historial.records)) throw new Error('El archivo no contiene un historial válido.');
+    const ids = new Set(datos.records.map(r => r.id));
+    let añadidos = 0;
+    for (const r of historial.records) {
+      if (typeof r.id !== 'string' || !Number.isFinite(r.at) || !Number.isFinite(r.grams) ||
+          !Number.isFinite(r.mg) || r.grams <= 0 || r.grams > 30 || r.mg <= 0 || r.mg > 750 ||
+          ids.has(r.id)) continue;
+      ids.add(r.id);
+      datos.records.push({ id: r.id, at: r.at, grams: r.grams, mg: r.mg });
+      ponerPendiente({ tipo: 'add', id: r.id, at: r.at, grams: r.grams, mg: r.mg });
+      añadidos++;
+    }
+    guardarDatos();
+    actualizarPantalla();
+    return añadidos;
+  }
+
 
   function guardarDatos() {
     try {
@@ -487,6 +815,7 @@
       borrar.setAttribute('aria-label', `Eliminar café de las ${formatoHora.format(new Date(cafe.at))}`);
       borrar.addEventListener('click', () => {
         datos.records = datos.records.filter((r) => r.id !== cafe.id);
+        ponerPendiente({ tipo: 'delete', id: cafe.id });
         guardarDatos();
         actualizarPantalla();
       });
@@ -502,6 +831,7 @@
   $('dormir').addEventListener('change', () => {
     if (!/^([01]\d|2[0-3]):[0-5]\d$/.test($('dormir').value)) return;
     datos.bedtime = $('dormir').value;
+    ponerPendiente({ tipo: 'setting', id: 'bedtime', valor: datos.bedtime });
     guardarDatos();
     actualizarPantalla();
   });
@@ -518,14 +848,20 @@
     if (momento > Date.now() + 5 * 60000 &&
         !confirm('Has indicado una hora futura. ¿Quieres registrar ese café previsto?')) return;
 
+    if (datos.mgPerGram !== porGramo) {
+      ponerPendiente({ tipo: 'setting', id: 'mgPerGram', valor: porGramo });
+    }
     datos.mgPerGram = porGramo;
-    datos.records.push({
+    const nuevaToma = {
       id: typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
         ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`,
       at: momento,
       grams: gramos,
       mg: gramos * porGramo
-    });
+    };
+    datos.records.push(nuevaToma);
+    ponerPendiente({ tipo: 'add', id: nuevaToma.id, at: nuevaToma.at,
+      grams: nuevaToma.grams, mg: nuevaToma.mg });
     guardarDatos();
     actualizarPantalla();
   });
@@ -533,7 +869,9 @@
   $('borrarHoy').addEventListener('click', () => {
     if (!confirm('¿Eliminar todos los cafés registrados hoy?')) return;
     const dia = fechaLocal(new Date());
+    const eliminados = datos.records.filter((r) => fechaLocal(new Date(r.at)) === dia);
     datos.records = datos.records.filter((r) => fechaLocal(new Date(r.at)) !== dia);
+    for (const r of eliminados) ponerPendiente({ tipo: 'delete', id: r.id });
     guardarDatos();
     actualizarPantalla();
   });
@@ -550,14 +888,37 @@
     setTimeout(() => URL.revokeObjectURL(enlace), 1000);
   });
 
+  $('conectarNube').addEventListener('click', configurarNube);
+  $('actualizarNube').addEventListener('click', () => {
+    if (!configuradaNube()) {
+      estadoNube('Primero introduce la URL y la clave, y pulsa Guardar y conectar.', 'error');
+    } else solicitarSincronizacion();
+  });
+  $('importar').addEventListener('click', () => $('archivoImportar').click());
+  $('archivoImportar').addEventListener('change', async () => {
+    const archivo = $('archivoImportar').files[0];
+    if (!archivo) return;
+    try {
+      const copia = JSON.parse(await archivo.text());
+      const numero = importarCopia(copia);
+      $('feedback').textContent = `${numero} cafés importados. ${configuradaNube() ? 'Se están sincronizando.' : 'Conecta la nube para enviarlos.'}`;
+    } catch (err) {
+      $('feedback').textContent = `No se ha podido importar: ${err.message}`;
+    } finally { $('archivoImportar').value = ''; }
+  });
+
   // Inicio
   const ahora = new Date();
   $('fecha').value = fechaLocal(ahora);
   $('hora').value = horaLocal(ahora);
   $('dormir').value = datos.bedtime;
   $('cafeinaPorGramo').value = String(datos.mgPerGram);
+  $('urlNube').value = nube.url;
+  $('claveNube').value = nube.clave;
+  $('detallesNube').open = !configuradaNube();
   actualizarCalculoGramos();
   actualizarPantalla();
+  if (configuradaNube()) solicitarSincronizacion();
   setInterval(() => {
     actualizarPantalla();
     const actual = new Date();
@@ -566,7 +927,12 @@
       $('fecha').value = fechaLocal(actual);
     }
   }, 60000);
+  // Comprobación cada 30 segundos y al volver a primer plano o recuperar Internet.
+  setInterval(() => { if (configuradaNube() && !document.hidden) solicitarSincronizacion(); }, 30000);
+  window.addEventListener('online', solicitarSincronizacion);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && configuradaNube()) solicitarSincronizacion();
+  });
 </script>
 </body>
 </html>
-
