@@ -391,7 +391,7 @@
   }
 
   function cargarDatos() {
-    const base = { records: [], bedtime: '23:30', mgPerGram: CAFEINA_POR_GRAMO_INICIAL };
+    const base = { records: [], bedtime: '00:00', mgPerGram: CAFEINA_POR_GRAMO_INICIAL };
     try {
       const almacenado = JSON.parse(localStorage.getItem(ALMACENAMIENTO));
       if (!almacenado || !Array.isArray(almacenado.records)) {
