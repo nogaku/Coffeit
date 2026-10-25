@@ -256,7 +256,7 @@
       <h2 id="titulo-sueno">¿A qué hora te vas a dormir?</h2>
       <div class="campo sueño-entrada">
         <label for="dormir">Hora de acostarte</label>
-        <input id="dormir" type="time" value="23:30" step="60">
+        <input id="dormir" type="time" value="00:00" step="60">
       </div>
       <div class="acciones" style="margin-top:10px">
         <button id="guardarHora" type="button">Guardar hora de dormir</button>
@@ -282,7 +282,7 @@
         <div class="valor">
           <div class="nombre">Cafeína estimada al dormir</div>
           <strong id="cafeinaDormir">0 mg</strong>
-          <div class="explicacion" id="horaDormirTexto">A las 23:30.</div>
+          <div class="explicacion" id="horaDormirTexto">A las 00:00.</div>
         </div>
         <div class="valor">
           <div class="nombre">Cafeína consumida hoy</div>
@@ -628,7 +628,7 @@
   function estadoDeEventos(eventos) {
     const registros = new Map();
     const borrados = new Set();
-    const resultado = { records: [], bedtime: '23:30', mgPerGram: CAFEINA_POR_GRAMO_INICIAL };
+    const resultado = { records: [], bedtime: '00:00', mgPerGram: CAFEINA_POR_GRAMO_INICIAL };
     for (const e of eventos) {
       if (!e || typeof e.id !== 'string') continue;
       if (e.tipo === 'add') {
@@ -675,7 +675,7 @@
         try { localStorage.removeItem(CLAVE_HORA_CONFIRMADA); } catch {}
       } else {
         // Si Apps Script devuelve una fecha en vez de HH:mm, o llega una
-        // lectura anterior a la escritura, NO restaurar el 23:30 viejo.
+        // lectura anterior a la escritura, NO restaurar el 00:00 viejo.
         nuevoEstado.bedtime = horaConfirmada.valor;
       }
     }
@@ -1026,7 +1026,7 @@
   $('cafeinaPorGramo').addEventListener('input', actualizarCalculoGramos);
 
   // La hora se guarda al escribir/seleccionar, sin esperar a perder el foco.
-  // Evita que la sincronización periódica restaure un valor antiguo (23:30).
+  // Evita que la sincronización periódica restaure un valor antiguo (00:00).
   function indicarEstadoHora() {
     const hayPendiente = !!horaConfirmada || pendientes.some(e => e.tipo === 'setting' && e.id === 'bedtime');
     $('estadoHoraDormir').textContent = hayPendiente
