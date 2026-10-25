@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#211914">
-  <title>Monitor de cafeína · Café y Coca-Cola Zero</title>
+  <title>Monitor de cafeína · Hora de dormir corregida</title>
   <style>
     :root {
       color-scheme: dark;
@@ -256,9 +256,12 @@
       <h2 id="titulo-sueno">¿A qué hora te vas a dormir?</h2>
       <div class="campo sueño-entrada">
         <label for="dormir">Hora de acostarte</label>
-        <input id="dormir" type="time" value="23:30">
+        <input id="dormir" type="time" value="23:30" step="60">
       </div>
-      <p class="ayuda">Elige cualquier hora (también después de medianoche). Se guarda y sincroniza automáticamente entre tus dispositivos.</p>
+      <div class="acciones" style="margin-top:10px">
+        <button id="guardarHora" type="button">Guardar hora de dormir</button>
+      </div>
+      <p class="ayuda">Elige cualquier hora, incluso después de medianoche. Se guarda al cambiarla; también puedes pulsar el botón para confirmarla.</p>
       <p id="estadoHoraDormir" class="ayuda" role="status" aria-live="polite">Tu elección se guardará automáticamente.</p>
       <div class="separador">
         <div class="ayuda">Última bebida con cafeína <em>(orientativo)</em></div>
@@ -332,6 +335,7 @@
   </div>
 
   <footer>
+    <strong>Versión 3.1 · hora de dormir corregida y sincronización reparada.</strong><br>
     Estimaciones generales: semivida de 5 horas, absorción gradual con un máximo habitual en torno a 30–60 minutos y referencia orientativa de 8 horas sin cafeína antes de dormir.
     Café: factor inicial 7 mg/g de café molido (la extracción real varía). Coca-Cola Zero Azúcar 330 ml: 32 mg aproximados, calculados a partir de valores de referencia; la marca no publica la cifra exacta para España.
     Las fases y cantidades no son mediciones clínicas. Google Sheets mantiene el historial compartido una vez que conectes el servicio actualizado.
@@ -431,6 +435,16 @@
   const CLAVE_COLA = 'dedica_google_sheets_pendientes_v1';
   const CLAVE_MIGRADO = 'dedica_google_sheets_migracion_finalizada_v1';
   const CLAVE_ORIGEN = 'dedica_google_sheets_copia_antes_migracion_v1';
+  // No permitir que una respuesta antigua o un valor horario mal interpretado
+  // por Sheets deshaga un cambio explícito recién hecho por la persona.
+  const CLAVE_HORA_CONFIRMADA = 'dedica_bedtime_confirmada_v1';
+  let horaConfirmada = leerJSON(CLAVE_HORA_CONFIRMADA, null);
+  if (!horaConfirmada || !/^([01]\d|2[0-3]):[0-5]\d$/.test(String(horaConfirmada.valor))) {
+    horaConfirmada = null;
+  }
+  if (horaConfirmada) {
+    datos.bedtime = horaConfirmada.valor;
+  }
   let nube = leerJSON(CLAVE_NUBE, { url: '', clave: '' });
   if (!nube || typeof nube.url !== 'string' || typeof nube.clave !== 'string') {
     nube = { url: '', clave: '' };
@@ -588,6 +602,29 @@
     }
   }
 
+  // Compatibilidad con los datos que Apps Script antiguo devolvía desde
+  // una celda de Sheets convertida erróneamente en fecha, número o HH:mm:ss.
+  function normalizarHoraRemota(valor) {
+    if (typeof valor === 'string') {
+      const simple = valor.trim().match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+      if (simple && Number(simple[1]) < 24 && Number(simple[2]) < 60) {
+        return `${rellenar(Number(simple[1]))}:${simple[2]}`;
+      }
+      // Un backend anterior podía devolver la fecha 1899-12-30T02:17:00.000Z.
+      // Esto es una recuperación provisional; el nuevo .gs corrige la lectura.
+      const fechaSheets = valor.match(/^1899-12-(?:29|30|31)T(\d{2}):(\d{2}):/);
+      if (fechaSheets && Number(fechaSheets[1]) < 24 && Number(fechaSheets[2]) < 60) {
+        return `${fechaSheets[1]}:${fechaSheets[2]}`;
+      }
+      return null;
+    }
+    if (typeof valor === 'number' && Number.isFinite(valor) && valor >= 0 && valor < 1) {
+      const minutos = Math.round(valor * 1440) % 1440;
+      return `${rellenar(Math.floor(minutos / 60))}:${rellenar(minutos % 60)}`;
+    }
+    return null;
+  }
+
   function estadoDeEventos(eventos) {
     const registros = new Map();
     const borrados = new Set();
@@ -603,9 +640,9 @@
       } else if (e.tipo === 'delete') {
         borrados.add(e.id);
         registros.delete(e.id);
-      } else if (e.tipo === 'setting' && e.id === 'bedtime' &&
-                 /^([01]\d|2[0-3]):[0-5]\d$/.test(String(e.valor))) {
-        resultado.bedtime = String(e.valor);
+      } else if (e.tipo === 'setting' && e.id === 'bedtime') {
+        const hora = normalizarHoraRemota(e.valor);
+        if (hora !== null) resultado.bedtime = hora;
       } else if (e.tipo === 'setting' && e.id === 'mgPerGram' &&
                  Number(e.valor) >= 1 && Number(e.valor) <= 25) {
         resultado.mgPerGram = Number(e.valor);
@@ -625,7 +662,31 @@
       try { localStorage.setItem(CLAVE_MIGRADO, '1'); } catch {}
     }
     // El historial compartido es la base; operaciones locales no confirmadas encima.
-    datos = estadoDeEventos([...eventosNube, ...pendientes]);
+    const nuevoEstado = estadoDeEventos([...eventosNube, ...pendientes]);
+    if (horaConfirmada) {
+      const posConfirmada = eventosNube.findIndex(e => e.opId === horaConfirmada.opId);
+      const eventoConfirmado = posConfirmada >= 0 ? eventosNube[posConfirmada] : null;
+      const valorConfirmado = eventoConfirmado ? normalizarHoraRemota(eventoConfirmado.valor) : null;
+      const pendientePropio = pendientes.some(e => e.opId === horaConfirmada.opId);
+      if (valorConfirmado === horaConfirmada.valor && !pendientePropio) {
+        // La hoja confirmó exactamente la hora guardada. Ya puede aceptar
+        // cambios posteriores hechos desde otro dispositivo.
+        horaConfirmada = null;
+        try { localStorage.removeItem(CLAVE_HORA_CONFIRMADA); } catch {}
+      } else {
+        // Si Apps Script devuelve una fecha en vez de HH:mm, o llega una
+        // lectura anterior a la escritura, NO restaurar el 23:30 viejo.
+        nuevoEstado.bedtime = horaConfirmada.valor;
+      }
+    }
+    // Si Sheets no trae NINGUNA hora válida, tampoco se cambia una elección local
+    // por un valor ficticio de fábrica.
+    const eventosHora = [...eventosNube, ...pendientes].filter(e =>
+      e.tipo === 'setting' && e.id === 'bedtime');
+    if (!eventosHora.some(e => normalizarHoraRemota(e.valor) !== null) && !horaConfirmada) {
+      nuevoEstado.bedtime = datos.bedtime;
+    }
+    datos = nuevoEstado;
     guardarDatos();
     // No modificar la entrada de hora mientras se está editando: el navegador
     // puede tardar en emitir "change", especialmente en el selector del móvil.
@@ -967,9 +1028,9 @@
   // La hora se guarda al escribir/seleccionar, sin esperar a perder el foco.
   // Evita que la sincronización periódica restaure un valor antiguo (23:30).
   function indicarEstadoHora() {
-    const hayPendiente = pendientes.some(e => e.tipo === 'setting' && e.id === 'bedtime');
+    const hayPendiente = !!horaConfirmada || pendientes.some(e => e.tipo === 'setting' && e.id === 'bedtime');
     $('estadoHoraDormir').textContent = hayPendiente
-      ? `Hora ${datos.bedtime} guardada aquí. Pendiente de sincronizar con Google Sheets.`
+      ? `Hora ${datos.bedtime} guardada aquí. Pendiente de confirmar en Google Sheets.`
       : configuradaNube()
         ? `Hora ${datos.bedtime} guardada y sincronizada con Google Sheets.`
         : `Hora ${datos.bedtime} guardada en este dispositivo. Conecta Google Sheets para compartirla.`;
@@ -977,24 +1038,35 @@
 
   function guardarHoraElegida() {
     const elegida = $('dormir').value;
-    // Durante una edición incompleta el campo puede devolver una cadena vacía.
-    // No se borra la hora anterior ni se sincroniza un valor inválido.
-    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(elegida)) return;
-    if (elegida === datos.bedtime) return;
+    // Evitar sobrescribir con valores a medio editar en móviles.
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(elegida)) {
+      $('estadoHoraDormir').textContent = 'Selecciona una hora válida antes de guardarla.';
+      return;
+    }
+    if (elegida === datos.bedtime) {
+      indicarEstadoHora();
+      return;
+    }
+    const opId = `op_${idUnico()}`;
     datos.bedtime = elegida;
+    horaConfirmada = { valor: elegida, opId, guardadoEn: Date.now() };
+    guardarJSON(CLAVE_HORA_CONFIRMADA, horaConfirmada);
     guardarDatos();
-    ponerPendiente({ tipo:'setting', id:'bedtime', valor:elegida });
+    pendientes.push({ opId, tipo: 'setting', id:'bedtime', valor:elegida });
+    guardarPendientes();
+    if (configuradaNube()) solicitarSincronizacion();
     indicarEstadoHora();
     actualizarPantalla();
   }
 
   $('dormir').addEventListener('input', guardarHoraElegida);
   $('dormir').addEventListener('change', guardarHoraElegida);
-  $('dormir').addEventListener('blur', () => {
+  $('dormir').addEventListener('blur', guardarHoraElegida);
+  $('guardarHora').addEventListener('click', () => {
     guardarHoraElegida();
-    // Si se abandona una edición incompleta, restaurar únicamente el último
-    // valor ya guardado; nunca el valor inicial de la página por defecto.
-    $('dormir').value = datos.bedtime;
+    // Confirmación explícita visible para móviles y navegadores que emiten
+    // eventos de hora únicamente al cerrar el selector.
+    if ($('dormir').value === datos.bedtime) indicarEstadoHora();
   });
 
   $('formularioCafe').addEventListener('submit', (evento) => {
