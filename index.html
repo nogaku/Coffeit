@@ -259,6 +259,7 @@
         <input id="dormir" type="time" value="23:30">
       </div>
       <p class="ayuda">Elige cualquier hora (también después de medianoche). Se guarda y sincroniza automáticamente entre tus dispositivos.</p>
+      <p id="estadoHoraDormir" class="ayuda" role="status" aria-live="polite">Tu elección se guardará automáticamente.</p>
       <div class="separador">
         <div class="ayuda">Última bebida con cafeína <em>(orientativo)</em></div>
         <div class="hora-limite" id="ultimoCafe">15:30</div>
@@ -626,7 +627,11 @@
     // El historial compartido es la base; operaciones locales no confirmadas encima.
     datos = estadoDeEventos([...eventosNube, ...pendientes]);
     guardarDatos();
-    $('dormir').value = datos.bedtime;
+    // No modificar la entrada de hora mientras se está editando: el navegador
+    // puede tardar en emitir "change", especialmente en el selector del móvil.
+    // Los eventos "input" ya guardan cualquier hora válida al instante.
+    if (document.activeElement !== $('dormir')) $('dormir').value = datos.bedtime;
+    indicarEstadoHora();
     $('cafeinaPorGramo').value = String(datos.mgPerGram);
     actualizarCalculoGramos();
     actualizarPantalla();
@@ -959,15 +964,37 @@
   $('gramos').addEventListener('input', actualizarCalculoGramos);
   $('cafeinaPorGramo').addEventListener('input', actualizarCalculoGramos);
 
-  // La hora puede ser cualquier HH:mm. El campo nativo de tiempo permite
-  // abrir el selector o escribirla directamente, incluso después de medianoche.
-  $('dormir').addEventListener('change', () => {
-    const elegida=$('dormir').value;
-    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(elegida) || elegida===datos.bedtime) return;
-    datos.bedtime=elegida;
-    ponerPendiente({ tipo:'setting', id:'bedtime', valor:elegida });
+  // La hora se guarda al escribir/seleccionar, sin esperar a perder el foco.
+  // Evita que la sincronización periódica restaure un valor antiguo (23:30).
+  function indicarEstadoHora() {
+    const hayPendiente = pendientes.some(e => e.tipo === 'setting' && e.id === 'bedtime');
+    $('estadoHoraDormir').textContent = hayPendiente
+      ? `Hora ${datos.bedtime} guardada aquí. Pendiente de sincronizar con Google Sheets.`
+      : configuradaNube()
+        ? `Hora ${datos.bedtime} guardada y sincronizada con Google Sheets.`
+        : `Hora ${datos.bedtime} guardada en este dispositivo. Conecta Google Sheets para compartirla.`;
+  }
+
+  function guardarHoraElegida() {
+    const elegida = $('dormir').value;
+    // Durante una edición incompleta el campo puede devolver una cadena vacía.
+    // No se borra la hora anterior ni se sincroniza un valor inválido.
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(elegida)) return;
+    if (elegida === datos.bedtime) return;
+    datos.bedtime = elegida;
     guardarDatos();
+    ponerPendiente({ tipo:'setting', id:'bedtime', valor:elegida });
+    indicarEstadoHora();
     actualizarPantalla();
+  }
+
+  $('dormir').addEventListener('input', guardarHoraElegida);
+  $('dormir').addEventListener('change', guardarHoraElegida);
+  $('dormir').addEventListener('blur', () => {
+    guardarHoraElegida();
+    // Si se abandona una edición incompleta, restaurar únicamente el último
+    // valor ya guardado; nunca el valor inicial de la página por defecto.
+    $('dormir').value = datos.bedtime;
   });
 
   $('formularioCafe').addEventListener('submit', (evento) => {
@@ -1051,6 +1078,7 @@
   $('fecha').value = fechaLocal(ahora);
   $('hora').value = horaLocal(ahora);
   $('dormir').value = datos.bedtime;
+  indicarEstadoHora();
   $('cafeinaPorGramo').value = String(datos.mgPerGram);
   $('urlNube').value = nube.url;
   $('claveNube').value = nube.clave;
@@ -1075,3 +1103,4 @@
 </script>
 </body>
 </html>
+
