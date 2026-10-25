@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#211914">
-  <title>Monitor de cafeína · De'Longhi Dedica</title>
+  <title>Monitor de cafeína · Café y Coca-Cola Zero</title>
   <style>
     :root {
       color-scheme: dark;
@@ -48,6 +48,7 @@
     .campo { display: grid; align-content: start; gap: 5px; }
     label { font-size: 13px; color: var(--secundario); }
     input, button { font: inherit; }
+    input[type="time"] { color-scheme: dark; }
     input {
       min-width: 0;
       width: 100%;
@@ -90,7 +91,26 @@
     details { color: var(--secundario); font-size: 13px; margin-top: 12px; }
     summary { cursor: pointer; width: fit-content; }
     details .campo { max-width: 270px; margin-top: 10px; }
-    .sueño-entrada { max-width: 215px; }
+    .sueño-entrada { max-width: 245px; }
+    #dormir { font-weight: 750; font-size: 23px; padding: 12px; color: var(--cafe); }
+    .bebida-tabs { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:16px; }
+    .bebida-tab { background:#3e3025; color:var(--texto); border:1px solid var(--borde); font-size:14px; }
+    .bebida-tab[aria-pressed="true"] { background:var(--cafe); color:#28180c; border-color:var(--cafe); }
+    .bebida-panel[hidden] { display:none; }
+    .cola-caja { border:1px solid #81664b; border-radius:12px; background:#3c3025; padding:15px; margin-bottom:13px; }
+    .cola-caja strong { display:block; color:var(--cafe); font-size:27px; line-height:1.25; }
+    .cantidad-refresco { color:var(--secundario); font-size:13px; }
+    .cafeina-nota { color:var(--secundario); font-size:12px; margin-top:5px; }
+    .tipo-registro { color:var(--cafe); font-weight:750; }
+    .fase-panel { display:grid; grid-template-columns:1.1fr .9fr; gap:12px; margin-top:13px; }
+    .fase-dato { padding:12px; background:var(--campo); border-radius:10px; }
+    .fase-dato span { display:block; color:var(--secundario); font-size:12px; }
+    .fase-dato strong { display:block; color:var(--texto); font-size:16px; margin-top:2px; }
+    .curva-panel { background:#1b1815; border:1px solid var(--borde); padding:12px 12px 6px; border-radius:12px; margin-top:15px; }
+    #graficaFase { width:100%; display:block; height:auto; max-height:220px; }
+    .curva-leyenda { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:9px; font-size:12px; color:var(--secundario); }
+    .curva-leyenda b { color:var(--texto); }
+    .fase-chip.sin-cafeina::before { background: var(--secundario); }
     .hora-limite { font-size: clamp(28px, 4vw, 40px); font-weight: 800; color: var(--cafe); line-height: 1.25; margin: 12px 0 4px; }
     .bloque-aviso { margin-top: 15px; padding: 12px 14px; border-radius: 10px; border-left: 4px solid var(--verde); background: #3a3026; }
     .bloque-aviso.advertencia { border-left-color: var(--aviso); }
@@ -143,6 +163,7 @@
       .valor { padding: 12px 14px; }
       .valor strong { font-size: 25px; }
       .fases { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .fase-panel { grid-template-columns:1fr; }
     }
     @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
   </style>
@@ -152,7 +173,7 @@
   <header>
     <div class="etiqueta">De'Longhi Dedica</div>
     <h1>☕ Monitor de cafeína</h1>
-    <p class="intro">Apunta tus cafés y consulta cuánto podría quedarte a la hora de dormir, sin cálculos manuales.</p>
+    <p class="intro">Registra café o Coca-Cola Zero y sigue la cantidad de cafeína estimada hasta la hora de dormir.</p>
   </header>
 
   <div class="rejilla">
@@ -180,35 +201,53 @@
       </details>
     </section>
     <section class="tarjeta" aria-labelledby="titulo-registro">
-      <h2 id="titulo-registro">Registrar un café</h2>
+      <h2 id="titulo-registro">Registrar una bebida</h2>
+      <div class="bebida-tabs" role="group" aria-label="Tipo de bebida">
+        <button id="tipoCafe" class="bebida-tab" aria-pressed="true" type="button">☕ Café</button>
+        <button id="tipoCola" class="bebida-tab" aria-pressed="false" type="button">🥤 Coca-Cola Zero</button>
+      </div>
       <form id="formularioCafe">
+        <div id="panelCafe" class="bebida-panel">
+          <div class="campos">
+            <div class="campo">
+              <label for="gramos">Café molido (g)</label>
+              <input id="gramos" type="number" min="1" max="30" step="0.5" value="10" required>
+            </div>
+            <div class="campo">
+              <label for="cafeinaCalculada">Cafeína estimada</label>
+              <output id="cafeinaCalculada" class="resultado-calculo" for="gramos cafeinaPorGramo">70 mg</output>
+            </div>
+          </div>
+          <p id="formula" class="ayuda">10 g × 7 mg/g = 70 mg estimados.</p>
+          <details>
+            <summary>Modificar mg de cafeína por gramo de café (opcional)</summary>
+            <div class="campo">
+              <label for="cafeinaPorGramo">Cafeína estimada por gramo (mg/g)</label>
+              <input id="cafeinaPorGramo" type="number" min="1" max="25" step="0.5" value="7" required>
+            </div>
+          </details>
+        </div>
+        <div id="panelCola" class="bebida-panel" hidden>
+          <div class="cola-caja">
+            <span class="cantidad-refresco">Coca-Cola Zero Azúcar, lata de 330 ml (con cafeína)</span>
+            <strong>≈ 32 mg de cafeína</strong>
+            <div class="cafeina-nota">Valor aproximado para una lata estándar. No es la versión «Zero Zero» sin cafeína.</div>
+          </div>
+        </div>
         <div class="campos">
           <div class="campo">
-            <label for="gramos">Café molido (g)</label>
-            <input id="gramos" type="number" min="1" max="30" step="0.5" value="10" required>
-          </div>
-          <div class="campo">
-            <label for="cafeinaCalculada">Cafeína estimada</label>
-            <output id="cafeinaCalculada" class="resultado-calculo" for="gramos cafeinaPorGramo">70 mg</output>
-          </div>
-          <div class="campo">
-            <label for="fecha">Fecha</label>
+            <label for="fecha">Fecha de la toma</label>
             <input id="fecha" type="date" required>
           </div>
           <div class="campo">
-            <label for="hora">Hora del café</label>
+            <label for="hora">Hora de la toma</label>
             <input id="hora" type="time" required>
           </div>
         </div>
-        <button type="submit" class="boton-principal">+ Añadir café</button>
-        <p id="formula" class="ayuda">10 g × 7 mg/g = 70 mg estimados.</p>
-        <details>
-          <summary>Cambiar la estimación por gramo (opcional)</summary>
-          <div class="campo">
-            <label for="cafeinaPorGramo">Cafeína estimada por gramo (mg/g)</label>
-            <input id="cafeinaPorGramo" type="number" min="1" max="25" step="0.5" value="7" required>
-          </div>
-        </details>
+        <div class="acciones">
+          <button id="anadirBebida" type="submit">+ Registrar café</button>
+          <button id="usarAhora" class="boton-secundario" type="button">Usar fecha y hora actuales</button>
+        </div>
       </form>
       <div id="feedback" role="status" aria-live="polite"></div>
     </section>
@@ -219,9 +258,9 @@
         <label for="dormir">Hora de acostarte</label>
         <input id="dormir" type="time" value="23:30">
       </div>
-      <p class="ayuda">El resto se calcula automáticamente.</p>
+      <p class="ayuda">Elige cualquier hora (también después de medianoche). Se guarda y sincroniza automáticamente entre tus dispositivos.</p>
       <div class="separador">
-        <div class="ayuda">Último café recomendado <em>(orientativo)</em></div>
+        <div class="ayuda">Última bebida con cafeína <em>(orientativo)</em></div>
         <div class="hora-limite" id="ultimoCafe">15:30</div>
         <p class="ayuda">Referencia de 8 horas antes de acostarte.</p>
       </div>
@@ -234,7 +273,7 @@
         <div class="valor">
           <div class="nombre">Cafeína estimada ahora</div>
           <strong id="cafeinaAhora">0 mg</strong>
-          <div class="explicacion">De los cafés registrados.</div>
+          <div class="explicacion">Cafeína absorbida que podría quedar de todas las bebidas.</div>
         </div>
         <div class="valor">
           <div class="nombre">Cafeína estimada al dormir</div>
@@ -242,12 +281,12 @@
           <div class="explicacion" id="horaDormirTexto">A las 23:30.</div>
         </div>
         <div class="valor">
-          <div class="nombre">Café de hoy</div>
+          <div class="nombre">Cafeína consumida hoy</div>
           <strong id="totalCafeinaHoy">0 mg</strong>
-          <div class="explicacion" id="numeroCafes">0 cafés registrados.</div>
+          <div class="explicacion" id="numeroCafes">0 bebidas registradas.</div>
         </div>
       </div>
-      <p class="ayuda" style="margin-top:15px">La cantidad «ahora» se incrementa progresivamente durante la absorción (no toda de golpe). Son estimaciones, no mediciones en sangre ni predicciones del sueño.</p>
+      <p class="ayuda" style="margin-top:15px">La cantidad «ahora» sube progresivamente cuando se absorbe una bebida y baja conforme se elimina. Es un modelo orientativo, no una medición en sangre ni una predicción fiable del sueño.</p>
     </section>
 
 
@@ -255,7 +294,7 @@
       <div class="fase-cabecera">
         <div>
           <h2 id="titulo-fase">¿En qué fase está tu cafeína?</h2>
-          <p class="ayuda">Evolución estimada a partir de todos los cafés registrados.</p>
+          <p class="ayuda">La curva combina todas las bebidas registradas, no solo la última.</p>
         </div>
         <div id="faseChip" class="fase-chip" role="status" aria-live="polite">Calculando…</div>
       </div>
@@ -266,14 +305,24 @@
         <div id="fase-bajada" class="fase-paso">↘ Bajando</div>
       </div>
       <p id="faseExplicacion" class="fase-mensaje">Calculando fase estimada…</p>
-      <p class="fase-nota">La fase describe cómo cambia la cantidad de cafeína absorbida y todavía presente en el organismo. No mide la energía, el nerviosismo ni el efecto real en ti.</p>
+      <div class="fase-panel">
+        <div class="fase-dato"><span>Variación estimada en 30 minutos</span><strong id="tendencia30">—</strong></div>
+        <div class="fase-dato"><span>Próximo pico de la curva</span><strong id="proximoPico">—</strong></div>
+      </div>
+      <div class="curva-panel">
+        <div class="curva-leyenda"><b>Curva de cafeína</b><span>Última hora · Ahora · Próximas 5 horas</span></div>
+        <svg id="graficaFase" viewBox="0 0 700 184" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Curva de cafeína estimada desde hace una hora hasta dentro de cinco horas">
+          <text x="16" y="90" fill="#cfbfb0" font-size="14">Calculando…</text>
+        </svg>
+      </div>
+      <p class="fase-nota">«Pico» es el máximo local previsto por el modelo; «meseta» significa que apenas cambia. Los efectos reales de la cafeína y el momento del pico varían según la persona.</p>
     </section>
 
     <section class="tarjeta ancha" aria-labelledby="titulo-historial">
-      <h2 id="titulo-historial">Cafés registrados hoy</h2>
+      <h2 id="titulo-historial">Bebidas registradas hoy</h2>
       <div id="registros" class="registros"></div>
       <div class="acciones">
-        <button type="button" id="borrarHoy" class="boton-borrar boton-pequeno">Borrar cafés de hoy</button>
+        <button type="button" id="borrarHoy" class="boton-borrar boton-pequeno">Borrar bebidas de hoy</button>
         <button type="button" id="exportar" class="boton-secundario boton-pequeno">Guardar copia JSON</button>
         <button type="button" id="importar" class="boton-secundario boton-pequeno">Importar copia JSON</button>
         <input id="archivoImportar" type="file" accept=".json,application/json" hidden>
@@ -282,13 +331,9 @@
   </div>
 
   <footer>
-    Cálculos automáticos con supuestos generales: semivida de cafeína de 5 horas,
-    recomendación orientativa de evitar cafeína 8 horas antes de dormir y estimación inicial de 7 mg de cafeína
-    por gramo de café molido. La absorción se modela gradualmente, con un pico aproximado a los 45–50 minutos
-    para una toma aislada (puede variar mucho entre personas). «Subida», «pico», «meseta» y «bajada» indican
-    tendencias de una estimación, no efectos físicos comprobados. La extracción real, el metabolismo y el sueño varían.
-    Los registros se sincronizan con Google Sheets si configuras el servicio; mientras tanto queda una copia local.
-    No es una medición ni un diagnóstico clínico.
+    Estimaciones generales: semivida de 5 horas, absorción gradual con un máximo habitual en torno a 30–60 minutos y referencia orientativa de 8 horas sin cafeína antes de dormir.
+    Café: factor inicial 7 mg/g de café molido (la extracción real varía). Coca-Cola Zero Azúcar 330 ml: 32 mg aproximados, calculados a partir de valores de referencia; la marca no publica la cifra exacta para España.
+    Las fases y cantidades no son mediciones clínicas. Google Sheets mantiene el historial compartido una vez que conectes el servicio actualizado.
   </footer>
 </main>
 <script>
@@ -301,6 +346,8 @@
   const ABSORCION_POR_HORA = 4.5;
   const MARGEN_SUENO_HORAS = 8;
   const CAFEINA_POR_GRAMO_INICIAL = 7;
+  const MG_COLA_330 = 32; // Coca-Cola Zero Azúcar con cafeína (aproximación).
+  let bebidaSeleccionada = 'coffee';
   const ALMACENAMIENTO = 'dedica_monitor_v2'; // Mantiene registros del HTML anterior.
   const $ = (id) => document.getElementById(id);
   const rellenar = (numero) => String(numero).padStart(2, '0');
@@ -327,6 +374,17 @@
     return d.getTime();
   }
 
+  function normalizarRegistro(r) {
+    const cola = r.type === 'cola_zero';
+    return { id:r.id, at:r.at, mg:Number(r.mg), grams:cola ? 0 : Number(r.grams),
+      type:cola ? 'cola_zero' : 'coffee', amountMl:cola ? 330 : 0 };
+  }
+
+  function eventoNuevoDeRegistro(r, opId) {
+    return { opId: opId || `op_${idUnico()}`, tipo:'add', id:r.id, at:r.at,
+      grams:r.grams, mg:r.mg, type:r.type || 'coffee', amountMl:r.amountMl || 0 };
+  }
+
   function cargarDatos() {
     const base = { records: [], bedtime: '23:30', mgPerGram: CAFEINA_POR_GRAMO_INICIAL };
     try {
@@ -349,8 +407,10 @@
       return {
         records: almacenado.records.filter((r) =>
           typeof r.id === 'string' && Number.isFinite(r.at) &&
-          Number.isFinite(r.mg) && r.mg > 0 && Number.isFinite(r.grams)
-        ),
+          Number.isFinite(r.mg) && r.mg > 0 &&
+          ((r.type === 'cola_zero' && (r.amountMl === 330 || r.ml === 330)) ||
+            ((r.type === 'coffee' || !r.type) && Number.isFinite(r.grams) && r.grams > 0))
+        ).map(r => normalizarRegistro(r)),
         bedtime: /^([01]\d|2[0-3]):[0-5]\d$/.test(almacenado.bedtime)
           ? almacenado.bedtime : base.bedtime,
         mgPerGram: Number.isFinite(almacenado.mgPerGram) && almacenado.mgPerGram >= 1 && almacenado.mgPerGram <= 25
@@ -499,11 +559,11 @@
     for (const registro of origen.records) {
       if (typeof registro.id !== 'string' || !Number.isFinite(registro.at) ||
           !Number.isFinite(registro.grams) || !Number.isFinite(registro.mg) ||
-          registro.grams <= 0 || registro.grams > 30 || registro.mg <= 0 || registro.mg > 750) continue;
+          registro.grams < 0 || registro.grams > 30 || registro.mg <= 0 || registro.mg > 750 ||
+          (registro.type === 'cola_zero' ? registro.amountMl !== 330 : registro.grams <= 0)) continue;
       const opId = `mig_${registro.id}`;
       if (!yaEnNube.has(opId) && !yaEnCola.has(opId)) {
-        importar.push({ opId, tipo: 'add', id: registro.id,
-          at: registro.at, grams: registro.grams, mg: registro.mg });
+        importar.push(eventoNuevoDeRegistro(normalizarRegistro(registro), opId));
       }
     }
     // Si la nube no tenía ajustes, trasladar los del navegador antiguo.
@@ -536,8 +596,9 @@
       if (e.tipo === 'add') {
         if (borrados.has(e.id) || registros.has(e.id)) continue;
         if (!Number.isFinite(e.at) || !Number.isFinite(e.grams) || !Number.isFinite(e.mg) ||
-          e.at < 1 || e.grams <= 0 || e.grams > 30 || e.mg <= 0 || e.mg > 750) continue;
-        registros.set(e.id, { id: e.id, at: e.at, grams: e.grams, mg: e.mg });
+          e.at < 1 || e.grams < 0 || e.grams > 30 || e.mg <= 0 || e.mg > 750 ||
+          (e.type === 'cola_zero' ? (Number(e.amountMl) !== 330 || Number(e.grams) !== 0) : e.grams <= 0)) continue;
+        registros.set(e.id, normalizarRegistro(e));
       } else if (e.tipo === 'delete') {
         borrados.add(e.id);
         registros.delete(e.id);
@@ -590,7 +651,7 @@
         incorporarRespuesta(eventos);
       }
       if (pendientes.length) {
-        estadoNube(`${pendientes.length} cambios pendientes; se reintentará la sincronización.`, 'espera');
+        estadoNube(`${pendientes.length} cambios pendientes. Si has añadido Coca-Cola Zero, comprueba que hayas publicado la nueva versión de Apps Script.`, 'espera');
       } else {
         estadoNube(`Sincronizado con Google Sheets · ${horaLocal(new Date())}`, 'bien');
       }
@@ -627,11 +688,13 @@
     let añadidos = 0;
     for (const r of historial.records) {
       if (typeof r.id !== 'string' || !Number.isFinite(r.at) || !Number.isFinite(r.grams) ||
-          !Number.isFinite(r.mg) || r.grams <= 0 || r.grams > 30 || r.mg <= 0 || r.mg > 750 ||
+          !Number.isFinite(r.mg) || r.grams < 0 || r.grams > 30 || r.mg <= 0 || r.mg > 750 ||
+          (r.type === 'cola_zero' ? (Number(r.amountMl) !== 330 || r.grams !== 0) : r.grams <= 0) ||
           ids.has(r.id)) continue;
       ids.add(r.id);
-      datos.records.push({ id: r.id, at: r.at, grams: r.grams, mg: r.mg });
-      ponerPendiente({ tipo: 'add', id: r.id, at: r.at, grams: r.grams, mg: r.mg });
+      const registro = normalizarRegistro(r);
+      datos.records.push(registro);
+      ponerPendiente(eventoNuevoDeRegistro(registro));
       añadidos++;
     }
     guardarDatos();
@@ -667,73 +730,122 @@
     return suma;
   }
 
-  // Se evalúa la curva completa, no solo el último café. Varios cafés pueden
-  // solaparse y producir una subida, un nuevo pico o una bajada combinada.
+  // Evaluar únicamente lo que se ha tomado hasta ahora: no asumir tomas futuras.
+  // El instante "ahora" se considera referencia; las próximas 5h son una PROYECCIÓN
+  // condicionada a que no se registren nuevas bebidas.
   function faseCafeina(ahora) {
     const t = ahora.getTime();
-    const tomados = datos.records.filter((c) => c.at <= t);
-    const actual = cafeinaRestante(t, tomados);
-    if (tomados.length === 0 || actual < 1) {
-      // Recién registrado: aunque aún se estimen menos de 1 mg absorbidos,
-      // mostrar subida si durante los próximos minutos comienza la absorción.
-      const despues = cafeinaRestante(t + 10 * 60000, tomados);
-      if (despues <= 1) {
-        return { etapa: '', nombre: 'Sin apenas cafeína', detalle: 'No hay una cantidad apreciable de cafeína estimada ahora.' };
+    const tomadas = datos.records.filter(r => r.at <= t);
+    const v = min => cafeinaRestante(t + min * 60000, tomadas);
+    const actual = v(0);
+    const en30 = v(30);
+    const diferencia = en30 - actual;
+    const sensibilidad = Math.max(1.5, actual * 0.025);
+
+    if (actual < 0.5 && en30 < 0.5) {
+      return { etapa:'sin-cafeina', nombre:'Sin cafeína apreciable',
+        detalle:'El modelo no detecta una cantidad relevante en este momento.',
+        diferencia, proximo:null, actual, tomadas };
+    }
+    // Encuentra el primer máximo local del futuro, con intervalo de 1 minuto.
+    // Si la curva va bajando, no se inventa un nuevo pico.
+    let proximo = null;
+    let previo = v(0);
+    for (let min=1; min<=300; min++) {
+      const siguiente=v(min);
+      if (min>=2 && siguiente < previo-0.005 && v(min-2) <= previo+0.005) {
+        proximo=min-1;
+        break;
       }
+      previo=siguiente;
     }
+    const atras = v(-10);
+    const delante = v(10);
+    const picoLocal = actual >= 1.5 &&
+      (actual >= atras - sensibilidad/3 && actual >= delante - sensibilidad/3) &&
+      Math.abs(delante-atras) <= Math.max(1.6,actual*.018) &&
+      tomadas.some(r => t-r.at <= 3*3600000);
 
-    const antes = cafeinaRestante(t - 10 * 60000, tomados);
-    const despues = cafeinaRestante(t + 10 * 60000, tomados);
-    const margenPico = Math.max(0.25, actual * 0.006);
-    const subia = actual > antes + margenPico;
-    const bajara = despues < actual - margenPico;
-    const cercaDelPico = actual >= 1 &&
-      actual >= antes - margenPico && actual >= despues - margenPico &&
-      Math.abs(actual - antes) <= Math.max(1.3, actual * 0.025) &&
-      Math.abs(actual - despues) <= Math.max(1.3, actual * 0.025) &&
-      tomados.some((c) => (t - c.at) <= 2 * 3600000) &&
-      (subia || bajara);
+    let etapa, nombre, detalle;
+    if (picoLocal) {
+      etapa='pico'; nombre='Cerca del pico';
+      detalle='La curva está en un máximo local aproximado. No significa que estés notando el máximo efecto.';
+    } else if (diferencia > sensibilidad) {
+      etapa='subida'; nombre='Subiendo';
+      detalle='Se está absorbiendo más cafeína de la que se elimina. La cantidad prevista aumenta.';
+    } else if (Math.abs(diferencia) <= sensibilidad) {
+      etapa='meseta'; nombre='Casi estable';
+      detalle='La estimación cambia poco durante los próximos 30 minutos.';
+    } else {
+      etapa='bajada'; nombre='Bajando';
+      detalle='La eliminación supera la absorción. Puede seguir quedando cafeína durante horas.';
+    }
+    return { etapa, nombre, detalle, diferencia, proximo, actual, tomadas };
+  }
 
-    if (cercaDelPico) {
-      return { etapa: 'pico', nombre: 'Cerca del pico',
-        detalle: 'La cantidad calculada está cerca de un máximo local. No significa necesariamente el momento de mayor efecto subjetivo.' };
+  function pintarCurva(ahora, fase) {
+    const svg = $('graficaFase');
+    const xmlns='http://www.w3.org/2000/svg';
+    svg.replaceChildren();
+    function el(nombre,attrs={},txt) {
+      const n=document.createElementNS(xmlns,nombre);
+      for (const [k,v] of Object.entries(attrs)) n.setAttribute(k,String(v));
+      if (txt !== undefined) n.textContent=txt;
+      svg.appendChild(n); return n;
     }
-
-    const variacion = despues - actual;
-    if (variacion > actual * 0.008) {
-      let mejorValor = actual;
-      let enMinutos = 0;
-      for (let minutos = 1; minutos <= 180; minutos++) {
-        const valor = cafeinaRestante(t + minutos * 60000, tomados);
-        if (valor > mejorValor) {
-          mejorValor = valor;
-          enMinutos = minutos;
-        }
-      }
-      const referencia = enMinutos > 0 ? `Si no tomas más café, el próximo máximo estimado llegaría en unos ${enMinutos} min.` : '';
-      return { etapa: 'subida', nombre: 'En subida',
-        detalle: `Todavía se está absorbiendo cafeína y el total estimado aumenta. ${referencia}`.trim() };
+    const registros=fase.tomadas;
+    const momento=ahora.getTime();
+    const puntos=[];
+    for (let min=-60;min<=300;min+=3) {
+      puntos.push({min,mg:cafeinaRestante(momento+min*60000,registros)});
     }
-    if (Math.abs(variacion) <= actual * 0.008) {
-      return { etapa: 'meseta', nombre: 'Prácticamente estable',
-        detalle: 'Durante los próximos minutos la cantidad estimada varía muy poco. Es una meseta aproximada, no un estado constante.' };
+    const mayor=Math.max(10,...puntos.map(p=>p.mg));
+    const x=min=>42+(min+60)/360*638;
+    const y=mg=>143-mg/mayor*112;
+    el('rect',{x:x(0),y:18,width:x(300)-x(0),height:126,fill:'#2e2822',rx:5});
+    for (const factor of [0,.5,1]) {
+      const yy=y(factor*mayor);
+      el('line',{x1:42,y1:yy,x2:680,y2:yy,stroke:'#6a5445','stroke-width':1,'stroke-dasharray':'4 5'});
     }
-    return { etapa: 'bajada', nombre: 'En bajada',
-      detalle: 'La eliminación supera la absorción: la cafeína estimada está disminuyendo, aunque todavía puede quedarte una cantidad importante.' };
+    const path=puntos.map((p,i)=>`${i?'L':'M'}${x(p.min).toFixed(1)},${y(p.mg).toFixed(1)}`).join(' ');
+    el('path',{d:path,fill:'none',stroke:'#f3c187','stroke-width':3,'stroke-linejoin':'round'});
+    el('line',{x1:x(0),y1:18,x2:x(0),y2:143,stroke:'#a8d5a8','stroke-width':1.8,'stroke-dasharray':'5 4'});
+    el('circle',{cx:x(0),cy:y(fase.actual),r:5.3,fill:'#a8d5a8',stroke:'#161310','stroke-width':2});
+    const labels=[[-60,'−1 h'],[0,'Ahora'],[60,'+1 h'],[180,'+3 h'],[300,'+5 h']];
+    for (const [min,txt] of labels) {
+      el('text',{x:x(min),y:169,'text-anchor':min===-60?'start':min===300?'end':'middle',fill:min===0?'#a8d5a8':'#cfbfb0','font-size':12},txt);
+    }
+    el('text',{x:10,y:24,fill:'#cfbfb0','font-size':11},`${Math.ceil(mayor)} mg`);
+    el('text',{x:27,y:145,fill:'#cfbfb0','font-size':11},'0');
+    if (fase.proximo !== null && fase.proximo<=300) {
+      const px=x(fase.proximo);
+      const mg=cafeinaRestante(momento+fase.proximo*60000,registros);
+      el('circle',{cx:px,cy:y(mg),r:5,fill:'#ffa6a6',stroke:'#161310','stroke-width':2});
+      el('text',{x:Math.max(110,Math.min(px,610)),y:16,'text-anchor':'middle',fill:'#ffa6a6','font-size':12},'Pico previsto');
+    }
   }
 
   function actualizarFase(ahora) {
-    const fase = faseCafeina(ahora);
-    const chip = $('faseChip');
-    chip.className = `fase-chip ${fase.etapa}`;
-    chip.textContent = fase.nombre;
-    $('faseExplicacion').textContent = fase.detalle;
-    for (const etapa of ['subida', 'pico', 'meseta', 'bajada']) {
-      const celda = $(`fase-${etapa}`);
-      celda.classList.toggle('activa', etapa === fase.etapa);
-      if (etapa === fase.etapa) celda.setAttribute('aria-current', 'step');
+    const fase=faseCafeina(ahora);
+    const chip=$('faseChip');
+    chip.className=`fase-chip ${fase.etapa}`;
+    chip.textContent=fase.nombre;
+    $('faseExplicacion').textContent=fase.detalle;
+    $('tendencia30').textContent=`${fase.diferencia>0?'+':''}${formatoNumero(fase.diferencia)} mg`;
+    const proximo=$('proximoPico');
+    if (fase.proximo === null) {
+      proximo.textContent='No se prevé otro pico';
+    } else {
+      const fechaPico=new Date(ahora.getTime()+fase.proximo*60000);
+      proximo.textContent=`${formatoHora.format(fechaPico)} (en ${fase.proximo} min)`;
+    }
+    for (const etapa of ['subida','pico','meseta','bajada']) {
+      const celda=$(`fase-${etapa}`);
+      celda.classList.toggle('activa',fase.etapa===etapa);
+      if (fase.etapa===etapa) celda.setAttribute('aria-current','step');
       else celda.removeAttribute('aria-current');
     }
+    pintarCurva(ahora,fase);
   }
 
   function proximaHoraDormir(ahora) {
@@ -782,7 +894,7 @@
     $('cafeinaDormir').textContent = `${formatoNumero(dormirMg)} mg`;
     $('horaDormirTexto').textContent = `A las ${formatoHora.format(dormir)}, con los cafés ya registrados.`;
     $('totalCafeinaHoy').textContent = `${formatoNumero(totalHoy)} mg`;
-    $('numeroCafes').textContent = `${hoy.length} ${hoy.length === 1 ? 'café registrado' : 'cafés registrados'}.`;
+    $('numeroCafes').textContent = `${hoy.length} ${hoy.length === 1 ? 'bebida registrada' : 'bebidas registradas'}.`;
     actualizarFase(ahora);
 
     const fueraDeHora = hoy.filter((c) => c.at > horaTope.getTime() && c.at <= dormir.getTime());
@@ -790,29 +902,30 @@
     aviso.className = 'bloque-aviso';
     if (fueraDeHora.length > 0) {
       aviso.classList.add('alerta');
-      aviso.textContent = `${fueraDeHora.length === 1 ? 'Has registrado un café' : `Has registrado ${fueraDeHora.length} cafés`} después de las ${formatoHora.format(horaTope)}. Podría dificultar el descanso.`;
+      aviso.textContent = `${fueraDeHora.length === 1 ? 'Has registrado una bebida con cafeína' : `Has registrado ${fueraDeHora.length} bebidas con cafeína`} después de las ${formatoHora.format(horaTope)}. Podría dificultar el descanso.`;
     } else if (ahora.getTime() >= horaTope.getTime()) {
       aviso.classList.add('advertencia');
-      aviso.textContent = 'Ya has superado la hora orientativa del último café. Lo recomendable sería evitar nuevas tomas hasta después de dormir.';
+      aviso.textContent = 'Ya has superado la hora orientativa para dejar la cafeína. Evitar más bebidas con cafeína puede favorecer el descanso.';
     } else {
-      aviso.textContent = 'Todavía no has llegado a la hora orientativa de dejar el café. Esta referencia no garantiza un buen descanso.';
+      aviso.textContent = 'Aún no ha llegado la hora orientativa para dejar la cafeína. Esta referencia no garantiza el descanso.';
     }
 
     const contenedor = $('registros');
     contenedor.replaceChildren();
     if (hoy.length === 0) {
-      contenedor.append(textoElemento('p', 'Aún no has registrado ningún café hoy.'));
+      contenedor.append(textoElemento('p', 'Aún no has registrado ninguna bebida hoy.'));
     }
     for (const cafe of hoy) {
       const fila = textoElemento('div', '');
       fila.className = 'registro';
       const detalle = textoElemento('div', '');
-      detalle.append(textoElemento('strong', `${formatoNumero(cafe.grams)} g · ${formatoNumero(cafe.mg)} mg estimados`));
+      const nombreBebida=cafe.type==='cola_zero' ? '🥤 Coca-Cola Zero · 330 ml' : `☕ Café · ${formatoNumero(cafe.grams)} g`;
+      detalle.append(textoElemento('strong', `${nombreBebida} · ${formatoNumero(cafe.mg)} mg`));
       detalle.append(textoElemento('small', `A las ${formatoHora.format(new Date(cafe.at))}`));
       const borrar = textoElemento('button', 'Eliminar');
       borrar.type = 'button';
       borrar.className = 'boton-borrar boton-pequeno';
-      borrar.setAttribute('aria-label', `Eliminar café de las ${formatoHora.format(new Date(cafe.at))}`);
+      borrar.setAttribute('aria-label', `Eliminar bebida de las ${formatoHora.format(new Date(cafe.at))}`);
       borrar.addEventListener('click', () => {
         datos.records = datos.records.filter((r) => r.id !== cafe.id);
         ponerPendiente({ tipo: 'delete', id: cafe.id });
@@ -825,49 +938,74 @@
     $('borrarHoy').disabled = hoy.length === 0;
   }
 
+  function seleccionarBebida(tipo) {
+    bebidaSeleccionada = tipo === 'cola_zero' ? 'cola_zero' : 'coffee';
+    const esCafe=bebidaSeleccionada==='coffee';
+    $('tipoCafe').setAttribute('aria-pressed',String(esCafe));
+    $('tipoCola').setAttribute('aria-pressed',String(!esCafe));
+    $('panelCafe').hidden=!esCafe;
+    $('panelCola').hidden=esCafe;
+    $('gramos').disabled=!esCafe;
+    $('cafeinaPorGramo').disabled=!esCafe;
+    $('anadirBebida').textContent=esCafe?'+ Registrar café':'+ Registrar Coca-Cola Zero';
+  }
+  $('usarAhora').addEventListener('click',()=>{
+    const ahora=new Date();
+    $('fecha').value=fechaLocal(ahora);
+    $('hora').value=horaLocal(ahora);
+  });
+  $('tipoCafe').addEventListener('click',()=>seleccionarBebida('coffee'));
+  $('tipoCola').addEventListener('click',()=>seleccionarBebida('cola_zero'));
   $('gramos').addEventListener('input', actualizarCalculoGramos);
   $('cafeinaPorGramo').addEventListener('input', actualizarCalculoGramos);
 
+  // La hora puede ser cualquier HH:mm. El campo nativo de tiempo permite
+  // abrir el selector o escribirla directamente, incluso después de medianoche.
   $('dormir').addEventListener('change', () => {
-    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test($('dormir').value)) return;
-    datos.bedtime = $('dormir').value;
-    ponerPendiente({ tipo: 'setting', id: 'bedtime', valor: datos.bedtime });
+    const elegida=$('dormir').value;
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(elegida) || elegida===datos.bedtime) return;
+    datos.bedtime=elegida;
+    ponerPendiente({ tipo:'setting', id:'bedtime', valor:elegida });
     guardarDatos();
     actualizarPantalla();
   });
 
   $('formularioCafe').addEventListener('submit', (evento) => {
     evento.preventDefault();
-    const gramos = Number($('gramos').value);
-    const porGramo = Number($('cafeinaPorGramo').value);
-    const momento = convertirFecha($('fecha').value, $('hora').value);
-    if (!(gramos >= 1 && gramos <= 30 && porGramo >= 1 && porGramo <= 25 && Number.isFinite(momento))) {
-      $('feedback').textContent = 'Revisa los gramos, la fecha y la hora del café.';
-      return;
+    const momento=convertirFecha($('fecha').value,$('hora').value);
+    if (!Number.isFinite(momento)) {
+      $('feedback').textContent='Revisa la fecha y la hora.';return;
     }
-    if (momento > Date.now() + 5 * 60000 &&
-        !confirm('Has indicado una hora futura. ¿Quieres registrar ese café previsto?')) return;
+    if (momento>Date.now()+5*60000 &&
+        !confirm('La hora indicada es futura. ¿Quieres registrar una bebida prevista?')) return;
 
-    if (datos.mgPerGram !== porGramo) {
-      ponerPendiente({ tipo: 'setting', id: 'mgPerGram', valor: porGramo });
+    let gramos=0,mg=0,amountMl=0;
+    if (bebidaSeleccionada==='coffee') {
+      gramos=Number($('gramos').value);
+      const porGramo=Number($('cafeinaPorGramo').value);
+      if (!(gramos>=1 && gramos<=30 && porGramo>=1 && porGramo<=25)) {
+        $('feedback').textContent='Revisa los gramos de café.';return;
+      }
+      mg=Math.round(gramos*porGramo*100)/100;
+      if (datos.mgPerGram!==porGramo) {
+        ponerPendiente({tipo:'setting',id:'mgPerGram',valor:porGramo});
+        datos.mgPerGram=porGramo;
+      }
+    } else {
+      mg=MG_COLA_330;
+      amountMl=330;
     }
-    datos.mgPerGram = porGramo;
-    const nuevaToma = {
-      id: typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-        ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`,
-      at: momento,
-      grams: gramos,
-      mg: gramos * porGramo
-    };
+    const nuevaToma={id:idUnico(),at:momento,grams:gramos,mg,
+      type:bebidaSeleccionada,amountMl};
     datos.records.push(nuevaToma);
-    ponerPendiente({ tipo: 'add', id: nuevaToma.id, at: nuevaToma.at,
-      grams: nuevaToma.grams, mg: nuevaToma.mg });
+    ponerPendiente(eventoNuevoDeRegistro(nuevaToma));
     guardarDatos();
     actualizarPantalla();
+    $('feedback').textContent='Bebida registrada. Se enviará a Google Sheets al sincronizar.';
   });
 
   $('borrarHoy').addEventListener('click', () => {
-    if (!confirm('¿Eliminar todos los cafés registrados hoy?')) return;
+    if (!confirm('¿Eliminar todas las bebidas registradas hoy?')) return;
     const dia = fechaLocal(new Date());
     const eliminados = datos.records.filter((r) => fechaLocal(new Date(r.at)) === dia);
     datos.records = datos.records.filter((r) => fechaLocal(new Date(r.at)) !== dia);
@@ -909,6 +1047,7 @@
 
   // Inicio
   const ahora = new Date();
+  seleccionarBebida('coffee');
   $('fecha').value = fechaLocal(ahora);
   $('hora').value = horaLocal(ahora);
   $('dormir').value = datos.bedtime;
